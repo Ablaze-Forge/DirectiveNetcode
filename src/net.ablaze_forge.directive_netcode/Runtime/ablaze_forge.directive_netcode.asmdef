@@ -1,0 +1,14 @@
+{
+    "name": "ablaze_forge.directive_netcode",
+    "rootNamespace": "AblazeForge.DirectiveNetcode",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

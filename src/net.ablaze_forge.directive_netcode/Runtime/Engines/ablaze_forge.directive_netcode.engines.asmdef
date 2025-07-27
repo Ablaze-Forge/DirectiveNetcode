@@ -1,0 +1,16 @@
+{
+    "name": "ablaze_forge.directive_netcode.engines",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Engines",
+    "references": [
+        "GUID:f2d49d9fa7e7eb3418e39723a7d3b92f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
