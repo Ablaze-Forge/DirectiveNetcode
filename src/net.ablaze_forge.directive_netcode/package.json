@@ -1,0 +1,12 @@
+{
+  "name": "net.ablaze_forge.directive_netcode",
+  "version": "0.0.1",
+  "displayName": "Directive Netcode",
+  "description": "A event driven wrapper for Unity's Transport Layer",
+  "unity": "2019.0",
+  "author": "Yuri Seiya dos Santos Fonseca <ablazeforge@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "com.unity.transport": "1.0.0"
+  }
+}
