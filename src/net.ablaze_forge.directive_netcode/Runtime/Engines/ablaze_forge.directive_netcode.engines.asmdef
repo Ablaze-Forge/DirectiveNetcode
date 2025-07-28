@@ -2,7 +2,8 @@
     "name": "ablaze_forge.directive_netcode.engines",
     "rootNamespace": "AblazeForge.DirectiveNetcode.Engines",
     "references": [
-        "GUID:f2d49d9fa7e7eb3418e39723a7d3b92f"
+        "Unity.Networking.Transport",
+        "Unity.Collections"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
