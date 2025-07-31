@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 
-
 namespace AblazeForge.DirectiveNetcode.Engines
 {
     public abstract class EngineBase
@@ -42,8 +41,6 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 Logger.LogWarning(GetType().Name, "Please be careful when using custom Update types. Also ensure the Type being used is available at all times inside the PlayerLoopSystem.");
             }
         }
-
-        public struct CustomEngineTickCategory { }
 
         private PlayerLoopSystem m_CustomTickSystem;
 
@@ -180,20 +177,14 @@ namespace AblazeForge.DirectiveNetcode.Engines
         }
 
         /// <summary>
-        /// Forces the removal of all delegate methods associated with THIS engine instance
-        /// registered in ANY PlayerLoopSystem subsystem.
+        /// Forces the removal of all delegate methods associated with THIS engine instance registered in ANY PlayerLoopSystem subsystem.
         /// </summary>
         /// <remarks>
-        /// This method is intended as a thorough cleanup, ensuring that any instances of
-        /// this engine's <see cref="Tick"/> method are removed from the PlayerLoop,
-        /// even if they were manually placed in unexpected subsystems.
+        /// This method is intended as a thorough cleanup, ensuring that any instances of this engine's <see cref="Tick"/> method are removed from the PlayerLoop, even if they were manually placed in unexpected subsystems.
         ///
-        /// Performance is slow due to the need to run on all PlayerLoopSystems,
-        /// use only when the Engine reaches a <see cref="EngineState.Unrecoverable"/> state.
+        /// Performance is slow due to the need to run on all PlayerLoopSystems, use only when the Engine reaches a <see cref="EngineState.Unrecoverable"/> state.
         ///
-        /// It operates regardless of the engine's current state and will reset the
-        /// engine's state to <see cref="EngineState.Stopped"/> upon completion,
-        /// allowing it to potentially be restarted by <see cref="StartTicking"/> again.
+        /// It operates regardless of the engine's current state and will reset the engine's state to <see cref="EngineState.Stopped"/> upon completion, allowing it to potentially be restarted by <see cref="StartTicking"/> again.
         /// </remarks>
         public void HardStop()
         {
@@ -243,6 +234,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             m_State = EngineState.Stopped;
         }
+
+        private struct CustomEngineTickCategory { }
 
         public enum EngineState
         {
