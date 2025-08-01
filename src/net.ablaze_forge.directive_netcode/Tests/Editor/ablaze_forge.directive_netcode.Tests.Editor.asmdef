@@ -1,0 +1,24 @@
+{
+    "name": "ablaze_forge.directive_netcode.Tests.Editor",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Tests.Editor",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "ablaze_forge.directive_netcode.Tests.Utils"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
