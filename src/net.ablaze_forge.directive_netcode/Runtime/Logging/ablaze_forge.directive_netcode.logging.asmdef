@@ -1,0 +1,14 @@
+{
+    "name": "ablaze_forge.directive_netcode.logging",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Logging",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
