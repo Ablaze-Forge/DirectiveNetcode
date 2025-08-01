@@ -3,7 +3,9 @@
     "rootNamespace": "AblazeForge.DirectiveNetcode.Engines",
     "references": [
         "Unity.Networking.Transport",
-        "Unity.Collections"
+        "Unity.Collections",
+        "ablaze_forge.directive_netcode.messaging",
+        "ablaze_forge.directive_netcode.logging"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

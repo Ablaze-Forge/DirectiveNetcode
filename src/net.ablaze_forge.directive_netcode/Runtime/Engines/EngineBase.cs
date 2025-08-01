@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
+using AblazeForge.DirectiveNetcode.Logging;
 
 namespace AblazeForge.DirectiveNetcode.Engines
 {
     public abstract class EngineBase
     {
-        protected ILogger Logger { get; private set; }
+        protected ErrorCodeLoggerBase Logger { get; private set; }
 
         private readonly Type m_UpdateType;
 
@@ -20,14 +21,14 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// The type of PlayerLoopSystem to inject into (e.g., typeof(FixedUpdate), typeof(Update)).
         /// Defaults to typeof(FixedUpdate) if null.
         /// </param>
-        protected EngineBase(ILogger logger, Type updateType = null)
+        protected EngineBase(ErrorCodeLoggerBase logger, Type updateType = null)
         {
             Logger = logger;
 
             if (Logger == null)
             {
-                Logger = Debug.unityLogger;
-                Logger.LogWarning("EngineBase", "ILogger was null. Falling back to Debug.unityLogger.");
+                Logger = new ErrorCodeLogger(Debug.unityLogger);
+                Logger.LogWarning(this, WarningCodes.Global_LoggerNotProvided, "ErrorCodeLoggerBase was null. Defaulting to ErrorCodeLogger with UnityLogger.");
             }
 
             m_UpdateType = updateType ?? typeof(FixedUpdate);
@@ -38,7 +39,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 m_UpdateType == typeof(PreLateUpdate) ||
                 m_UpdateType == typeof(PostLateUpdate)))
             {
-                Logger.LogWarning(GetType().Name, "Please be careful when using custom Update types. Also ensure the Type being used is available at all times inside the PlayerLoopSystem.");
+                Logger.LogWarning(this, WarningCodes.Engine_CustomLoopInjected, "Please be careful when using custom Update types. Also ensure the Type being used is available at all times inside the PlayerLoopSystem.");
             }
         }
 
@@ -64,7 +65,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         {
             if (m_State != EngineState.Stopped)
             {
-                Logger.LogWarning(GetType().Name, "Engine is not stopped. Call StopTicking() and ensure it's not in a Unrecoverable state first if you want to restart.");
+                Logger.LogWarning(this, WarningCodes.Engine_Start_InvalidState, "Engine is not stopped. Call StopTicking() and ensure it's not in a Unrecoverable state first if you want to restart.");
                 return false;
             }
 
@@ -86,7 +87,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             if (targetSubsystemIndex == -1)
             {
-                Logger.LogError(GetType().Name, $"Could not find the {m_UpdateType.Name} subsystem in the PlayerLoop. Engine cannot start ticking.");
+                Logger.LogError(this, ErrorCodes.Engine_UpdateTypeNotFoundOnSystem, $"Could not find the {m_UpdateType.Name} subsystem in the PlayerLoop. Engine cannot start ticking.");
                 m_State = EngineState.Stopped;
                 return false;
             }
@@ -107,7 +108,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
             PlayerLoop.SetPlayerLoop(currentPlayerLoop);
 
             m_State = EngineState.Running;
-            Logger.Log(GetType().Name, $"Engine {GetType().Name} started ticking.");
+            Logger.Log(this, $"Engine {GetType().Name} started ticking.");
 
             return true;
         }
@@ -128,7 +129,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         {
             if (m_State != EngineState.Running)
             {
-                Logger.LogWarning(GetType().Name, "Engine is not currently running.");
+                Logger.LogWarning(this, WarningCodes.Engine_Stop_InvalidState, "Engine is not currently running.");
                 return false;
             }
 
@@ -149,7 +150,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             if (targetSubsystemIndex == -1)
             {
-                Logger.LogWarning(GetType().Name, $"Could not find the {m_UpdateType.Name} subsystem in the PlayerLoop to stop ticking. Don't remove custom Update types from the PlayerLoop that contains the injected Tick method.");
+                Logger.LogWarning(this, WarningCodes.Engine_UpdateTypeNotFoundOnSystem, $"Could not find the {m_UpdateType.Name} subsystem in the PlayerLoop to stop ticking. Don't remove custom Update types from the PlayerLoop that contains the injected Tick method.");
                 m_State = EngineState.Stopped;
                 return false;
             }
@@ -165,12 +166,12 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 currentPlayerLoop.subSystemList[targetSubsystemIndex].subSystemList = targetSubsystems.ToArray();
                 PlayerLoop.SetPlayerLoop(currentPlayerLoop);
                 m_State = EngineState.Stopped;
-                Logger.Log(GetType().Name, $"Engine {GetType().Name} stopped ticking. Removed {removedCount} custom system(s) from {m_UpdateType.Name} loop.");
+                Logger.Log(this, $"Engine {GetType().Name} stopped ticking. Removed {removedCount} custom system(s) from {m_UpdateType.Name} loop.");
                 return true;
             }
             else
             {
-                Logger.LogError(GetType().Name, $"Could not find *this instance's* custom tick system for {GetType().Name} to remove from {m_UpdateType.Name} loop. This indicates an unexpected external modification or corruption of the PlayerLoop. This engine instance is now in an unrecoverable state. Use ForceStop() to attempt a cleanup and reset if needed.");
+                Logger.LogError(this, ErrorCodes.Engine_Stop_NoTickDelegateFound, $"Could not find *this instance's* custom tick system for {GetType().Name} to remove from {m_UpdateType.Name} loop. This indicates an unexpected external modification or corruption of the PlayerLoop. This engine instance is now in an unrecoverable state. Use ForceStop() to attempt a cleanup and reset if needed.");
                 m_State = EngineState.Unrecoverable;
                 return false;
             }
@@ -188,7 +189,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </remarks>
         public void HardStop()
         {
-            Logger.LogWarning(GetType().Name, "Attempting a hard stop to clean all instance-specific methods from the PlayerLoop.");
+            Logger.LogWarning(this, WarningCodes.Engine_HardStopInProgress, "Attempting a hard stop to clean all instance-specific methods from the PlayerLoop.");
 
             PlayerLoopSystem currentPlayerLoop = PlayerLoop.GetCurrentPlayerLoop();
             int removedCount = 0;
@@ -207,7 +208,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                         if (subSystem.updateDelegate?.Target == this)
                         {
                             removedCount++;
-                            Logger.Log($"Removed instance's Tick method from PlayerLoop subsystem type: {currentTopLevelSystem.type.Name}");
+                            Logger.Log(this, $"Removed instance's Tick method from PlayerLoop subsystem type: {currentTopLevelSystem.type.Name}");
                         }
                         else
                         {
@@ -225,11 +226,11 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             if (removedCount > 0)
             {
-                Logger.Log(GetType().Name, $"Hard stopped engine. Removed {removedCount} instance-specific method(s) from the PlayerLoop.");
+                Logger.Log(this, $"Hard stopped engine. Removed {removedCount} instance-specific method(s) from the PlayerLoop.");
             }
             else
             {
-                Logger.LogWarning(GetType().Name, "No instance-specific methods were found in the PlayerLoop to hard stop.");
+                Logger.LogWarning(this, WarningCodes.Engine_HardStop_MissingDelegates, "No instance-specific methods were found in the PlayerLoop to hard stop.");
             }
 
             m_State = EngineState.Stopped;
