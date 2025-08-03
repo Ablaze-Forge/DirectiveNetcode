@@ -1,0 +1,17 @@
+{
+    "name": "ablaze_forge.directive_netcode.messaging",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Messaging",
+    "references": [
+        "Unity.Collections",
+        "ablaze_forge.directive_netcode.unity.extensions"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
