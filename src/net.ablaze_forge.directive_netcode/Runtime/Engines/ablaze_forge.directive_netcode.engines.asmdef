@@ -5,7 +5,8 @@
         "Unity.Networking.Transport",
         "Unity.Collections",
         "ablaze_forge.directive_netcode.messaging",
-        "ablaze_forge.directive_netcode.logging"
+        "ablaze_forge.directive_netcode.logging",
+        "ablaze_forge.directive_netcode.unity.extensions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
