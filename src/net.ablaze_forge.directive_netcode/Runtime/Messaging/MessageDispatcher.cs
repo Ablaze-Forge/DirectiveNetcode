@@ -12,7 +12,7 @@ namespace AblazeForge.DirectiveNetcode.Messaging
     /// Handles the dispatching of network messages to registered handlers based on message keys.
     /// This class supports both direct delegate handlers and reflection-based handlers for flexible message processing.
     /// </summary>
-    public class ServerMessageDispatcher
+    public class MessageDispatcher
     {
         /// <summary>
         /// The logger instance used for logging messages and errors from the dispatcher.
@@ -20,10 +20,10 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         private readonly ILogger m_Logger;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ServerMessageDispatcher"/> class with the specified logger.
+        /// Initializes a new instance of the <see cref="MessageDispatcher"/> class with the specified logger.
         /// </summary>
         /// <param name="logger">The logger instance to use for logging messages and errors.</param>
-        public ServerMessageDispatcher(ILogger logger)
+        public MessageDispatcher(ILogger logger)
         {
             m_Logger = logger;
         }
