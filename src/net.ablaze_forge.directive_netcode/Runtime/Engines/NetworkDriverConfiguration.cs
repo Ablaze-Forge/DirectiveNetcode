@@ -1,3 +1,5 @@
+using System;
+using Unity.Collections;
 using Unity.Networking.Transport;
 
 namespace AblazeForge.DirectiveNetcode.Engines
@@ -19,7 +21,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <summary>
         /// Provides a default configuration for a WebSocket-based <see cref="NetworkDriver"/>.
         /// </summary>
-        public static NetworkDriverConfiguration<WebSocketNetworkInterface> WebSocketConfiguration => new(port: 7778);
+        public static NetworkDriverConfiguration<WebSocketNetworkInterface> WebSocketConfiguration => new(port: 7778, reliablePipelineConfig: PipelineStageConfiguration.UnreliableDefaultConfiguration);
 
         /// <summary>
         /// Specifies whether to use IPv4. If false, IPv6 will be used.
@@ -31,22 +33,40 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </summary>
         public ushort Port { get; private set; }
 
+        public PipelineStageConfiguration UnreliablePipelineIds;
+        public PipelineStageConfiguration ReliablePipelineIds;
+        public PipelineStageConfiguration UnreliableSequencedPipelineIds;
+        public PipelineStageConfiguration FragmentationPipelineIds;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="NetworkDriverConfiguration"/> class.
         /// </summary>
         /// <param name="port">The network port for the driver.</param>
         /// <param name="useIPv4">True to use IPv4 and false to use IPv6.</param>
-        protected NetworkDriverConfiguration(ushort port, bool useIPv4)
+        /// <param name="unreliablePipelineConfig">Configuration for unreliable pipeline.</param>
+        /// <param name="reliablePipelineConfig">Configuration for reliable pipeline.</param>
+        /// <param name="unreliableSequencedPipelineConfig">Configuration for unreliable sequenced pipeline.</param>
+        /// <param name="fragmentationPipelineConfig">Configuration for fragmentation pipeline.</param>
+        protected NetworkDriverConfiguration(ushort port, bool useIPv4,
+            PipelineStageConfiguration unreliablePipelineConfig = null,
+            PipelineStageConfiguration reliablePipelineConfig = null,
+            PipelineStageConfiguration unreliableSequencedPipelineConfig = null,
+            PipelineStageConfiguration fragmentationPipelineConfig = null)
         {
             Port = port;
             UseIPv4 = useIPv4;
+
+            UnreliablePipelineIds = unreliablePipelineConfig ?? PipelineStageConfiguration.UnreliableDefaultConfiguration;
+            ReliablePipelineIds = reliablePipelineConfig ?? PipelineStageConfiguration.ReliableSequencedDefaultConfiguration;
+            UnreliableSequencedPipelineIds = unreliableSequencedPipelineConfig ?? PipelineStageConfiguration.UnreliableSequencedDefaultConfiguration;
+            FragmentationPipelineIds = fragmentationPipelineConfig ?? PipelineStageConfiguration.FragmentedDefaultConfiguration;
         }
 
         /// <summary>
         /// Creates and returns a configured <see cref="NetworkDriver"/> instance based on this configuration.
         /// </summary>
         /// <returns>A new <see cref="NetworkDriver"/>.</returns>
-        public abstract NetworkDriver GetNetworkDriver();
+        public abstract NetworkDriver GetNetworkDriver(NetworkSettings settings);
     }
 
     /// <summary>
@@ -69,7 +89,16 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </summary>
         /// <param name="port">The network port for the driver. Defaults to 7777.</param>
         /// <param name="useIPv4">True to use IPv4 and false to use IPv6. Defaults to <c>true</c>.</param>
-        public NetworkDriverConfiguration(ushort port = 7777, bool useIPv4 = true) : base(port, useIPv4)
+        /// <param name="unreliablePipelineConfig">Configuration for unreliable pipeline. Defaults to null.</param>
+        /// <param name="reliablePipelineConfig">Configuration for reliable pipeline. Defaults to null.</param>
+        /// <param name="unreliableSequencedPipelineConfig">Configuration for unreliable sequenced pipeline. Defaults to null.</param>
+        /// <param name="fragmentationPipelineConfig">Configuration for fragmentation pipeline. Defaults to null.</param>
+        public NetworkDriverConfiguration(ushort port = 7777, bool useIPv4 = true,
+            PipelineStageConfiguration unreliablePipelineConfig = null,
+            PipelineStageConfiguration reliablePipelineConfig = null,
+            PipelineStageConfiguration unreliableSequencedPipelineConfig = null,
+            PipelineStageConfiguration fragmentationPipelineConfig = null)
+            : base(port, useIPv4, unreliablePipelineConfig, reliablePipelineConfig, unreliableSequencedPipelineConfig, fragmentationPipelineConfig)
         {
             NetworkInterfaceInstance = new T();
         }
@@ -83,7 +112,16 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="networkInterfaceInstance">The pre-configured <see cref="INetworkInterface"/> instance.</param>
         /// <param name="port">The network port for the driver. Defaults to 7777.</param>
         /// <param name="useIPv4">True to use IPv4 and false to use IPv6. Defaults to <c>true</c>.</param>
-        public NetworkDriverConfiguration(T networkInterfaceInstance, ushort port = 7777, bool useIPv4 = true) : base(port, useIPv4)
+        /// <param name="unreliablePipelineConfig">Configuration for unreliable pipeline. Defaults to null.</param>
+        /// <param name="reliablePipelineConfig">Configuration for reliable pipeline. Defaults to null.</param>
+        /// <param name="unreliableSequencedPipelineConfig">Configuration for unreliable sequenced pipeline. Defaults to null.</param>
+        /// <param name="fragmentationPipelineConfig">Configuration for fragmentation pipeline. Defaults to null.</param>
+        public NetworkDriverConfiguration(T networkInterfaceInstance, ushort port = 7777, bool useIPv4 = true,
+            PipelineStageConfiguration unreliablePipelineConfig = null,
+            PipelineStageConfiguration reliablePipelineConfig = null,
+            PipelineStageConfiguration unreliableSequencedPipelineConfig = null,
+            PipelineStageConfiguration fragmentationPipelineConfig = null)
+            : base(port, useIPv4, unreliablePipelineConfig, reliablePipelineConfig, unreliableSequencedPipelineConfig, fragmentationPipelineConfig)
         {
             NetworkInterfaceInstance = networkInterfaceInstance;
         }
@@ -92,9 +130,27 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// Overrides the base method to create a <see cref="NetworkDriver"/> using the specific <see cref="INetworkInterface"/> defined by this configuration.
         /// </summary>
         /// <returns>A new <see cref="NetworkDriver"/> instance.</returns>
-        public override NetworkDriver GetNetworkDriver()
+        public override NetworkDriver GetNetworkDriver(NetworkSettings settings)
         {
-            return NetworkDriver.Create(NetworkInterfaceInstance);
+            return NetworkDriver.Create(NetworkInterfaceInstance, settings);
+        }
+    }
+
+    public class PipelineStageConfiguration
+    {
+        public static PipelineStageConfiguration ReliableSequencedDefaultConfiguration => new(typeof(ReliableSequencedPipelineStage));
+
+        public static PipelineStageConfiguration UnreliableSequencedDefaultConfiguration => new(typeof(UnreliableSequencedPipelineStage));
+
+        public static PipelineStageConfiguration UnreliableDefaultConfiguration => new(typeof(NullPipelineStage));
+
+        public static PipelineStageConfiguration FragmentedDefaultConfiguration => new(typeof(FragmentationPipelineStage), typeof(ReliableSequencedPipelineStage));
+
+        public Type[] Stages;
+
+        public PipelineStageConfiguration(params Type[] stages)
+        {
+            Stages = stages;
         }
     }
 }
