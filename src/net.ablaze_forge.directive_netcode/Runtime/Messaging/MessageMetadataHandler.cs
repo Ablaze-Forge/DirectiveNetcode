@@ -4,6 +4,18 @@
 /// </summary>
 public class MessageMetadataHandler
 {
+    /// <summary>
+    /// Gets the default message metadata handler instance.
+    /// This instance represents a message with the default type (bits 6-7 set to 00).
+    /// </summary>
+    public static MessageMetadataHandler Default => new(0b00000000);
+
+    /// <summary>
+    /// Gets the variable tracking message metadata handler instance.
+    /// This instance represents a message with the variable tracking type (bits 6-7 set to 01).
+    /// </summary>
+    public static MessageMetadataHandler VarTracking => new(0b01000000);
+
     // Booleans defining what type of message this is, bits 6 and 7 are locked for the comparison, allowing for up to 4 types
     private const byte m_MessageTypeBitMask = 0b11000000;
 
@@ -11,15 +23,15 @@ public class MessageMetadataHandler
     /// Gets a value indicating whether this message is of the default type.
     /// This is determined by checking if bits 6 and 7 of the metadata byte are both 0 (0b00000000).
     /// </summary>
-    public bool IsDefaultType => (m_Data & m_MessageTypeBitMask) == 0b00000000;
+    public bool IsDefaultType => (Data & m_MessageTypeBitMask) == 0b00000000;
 
     /// <summary>
     /// Gets a value indicating whether this message is of the variable tracking type.
     /// This is determined by checking if bits 6 and 7 of the metadata byte are 01 (0b01000000).
     /// </summary>
-    public bool IsVarTracking => (m_Data & m_MessageTypeBitMask) == 0b01000000;
+    public bool IsVarTracking => (Data & m_MessageTypeBitMask) == 0b01000000;
 
-    private readonly byte m_Data;
+    public readonly byte Data;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MessageMetadataHandler"/> class with the specified metadata byte.
@@ -27,6 +39,6 @@ public class MessageMetadataHandler
     /// <param name="data">The byte containing message metadata, with bits 6-7 reserved for message type identification.</param>
     public MessageMetadataHandler(byte data)
     {
-        m_Data = data;
+        Data = data;
     }
 }
