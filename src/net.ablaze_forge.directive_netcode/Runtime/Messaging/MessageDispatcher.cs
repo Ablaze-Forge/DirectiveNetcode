@@ -141,6 +141,79 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         }
 
         /// <summary>
+        /// Registers message handlers via reflection by scanning the specified assembly for methods decorated with
+        /// <see cref="MessageHandlerAttribute"/> or <see cref="MessageReflectionHandlerAttribute"/>.
+        /// </summary>
+        /// <remarks>
+        /// This method performs the following operations:
+        /// <list type="bullet">
+        /// <item><description>Scans all public types in the specified assembly</description></item>
+        /// <item><description>Identifies methods decorated with <see cref="MessageHandlerAttribute"/> for direct delegate registration</description></item>
+        /// <item><description>Identifies methods decorated with <see cref="MessageReflectionHandlerAttribute"/> for reflection-based registration</description></item>
+        /// <item><description>Creates appropriate handler delegates and registers them with the dispatcher</description></item>
+        /// <item><description>Handles both static and instance methods appropriately</description></item>
+        /// </list>
+        /// </remarks>
+        /// <param name="assembly">The assembly to scan for message handlers. If null, uses the calling assembly.</param>
+        /// <returns>The number of message handlers successfully registered.</returns>
+        public int RegisterMessagesViaReflection(Assembly assembly = null)
+        {
+            if (assembly == null)
+            {
+                assembly = Assembly.GetCallingAssembly();
+            }
+
+            int registeredCount = 0;
+
+            Type[] types = assembly.GetExportedTypes();
+
+            foreach (Type type in types)
+            {
+                var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+
+                foreach (var method in methods)
+                {
+                    var messageHandlerAttribute = method.GetCustomAttribute<MessageHandlerAttribute>();
+                    if (messageHandlerAttribute != null)
+                    {
+                        try
+                        {
+                            object target = method.IsStatic ? null : Activator.CreateInstance(type);
+                            MessageHandler handler = (MessageHandler)Delegate.CreateDelegate(typeof(MessageHandler), target, method, false);
+
+                            if (handler != null)
+                            {
+                                RegisterHandler(messageHandlerAttribute.MessageKey, handler);
+                                registeredCount++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            m_Logger.LogError(GetType().Name, $"Failed to register direct handler for method {method.Name}: {ex.Message}");
+                        }
+                    }
+
+                    var reflectionHandlerAttribute = method.GetCustomAttribute<MessageReflectionHandlerAttribute>();
+                    if (reflectionHandlerAttribute != null)
+                    {
+                        try
+                        {
+                            object target = method.IsStatic ? null : Activator.CreateInstance(type);
+                            RegisterReflectionHandler(reflectionHandlerAttribute.MessageKey, target, method);
+                            registeredCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            m_Logger.LogError(GetType().Name, $"Failed to register reflection handler for method {method.Name}: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            return registeredCount;
+        }
+
+        /// <summary>
         /// Handles reflection-based message processing by dynamically invoking methods with deserialized parameters.
         /// This class uses compiled expressions for efficient method invocation and parameter deserialization.
         /// </summary>
@@ -314,4 +387,91 @@ namespace AblazeForge.DirectiveNetcode.Messaging
     /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
     /// <param name="stream">The data stream reader containing the message data.</param>
     public delegate void MessageHandler(ulong connectionUID, MessageMetadataHandler messageMetadata, DataStreamReader stream);
+
+    /// <summary>
+    /// Specifies that a method should be registered as a direct message handler for network messages.
+    /// </summary>
+    /// <remarks>
+    /// This attribute is used to mark methods that should be automatically registered as message handlers via reflection. Methods decorated with this attribute will be registered as direct delegate handlers with the message dispatcher, providing optimal performance for message processing.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// [MessageHandler(1001)]
+    /// public void HandlePlayerJoin(ulong connectionUID, MessageMetadataHandler metadata, DataStreamReader stream)
+    /// {
+    ///     // Process player join message
+    /// }
+    /// </code>
+    /// </example>
+    [AttributeUsage(AttributeTargets.Method)]
+    public class MessageHandlerAttribute : Attribute
+    {
+        /// <summary>
+        /// Gets the message key that this handler is registered for.
+        /// </summary>
+        public ushort MessageKey { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageHandlerAttribute"/> class with the specified message key.
+        /// </summary>
+        /// <param name="messageKey">The numeric key identifying the message type to handle.</param>
+        public MessageHandlerAttribute(ushort messageKey)
+        {
+            MessageKey = messageKey;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageHandlerAttribute"/> class with the specified enum-based message key.
+        /// </summary>
+        /// <param name="messageKey">The enum value identifying the message type to handle.</param>
+        public MessageHandlerAttribute(Enum messageKey)
+        {
+            MessageKey = (ushort)(object)messageKey;
+        }
+    }
+
+    /// <summary>
+    /// Specifies that a method should be registered as a reflection-based message handler for network messages.
+    /// </summary>
+    /// <remarks>
+    /// This attribute is used to mark methods that should be automatically registered as message handlers via reflection. Methods decorated with this attribute will be registered as reflection-based handlers with the message dispatcher, which provides automatic parameter deserialization and flexible method signatures.
+    /// <para>
+    /// Reflection-based handlers can have parameters that are automatically deserialized from the message stream, making them more convenient than direct delegate handlers when working with complex message types.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// [MessageReflectionHandler(1002)]
+    /// public void HandlePlayerData(ulong connectionUID, MessageMetadataHandler metadata, PlayerData playerData)
+    /// {
+    ///     // Process player data - PlayerData is automatically deserialized
+    /// }
+    /// </code>
+    /// </example>
+    [AttributeUsage(AttributeTargets.Method)]
+    public class MessageReflectionHandlerAttribute : Attribute
+    {
+        /// <summary>
+        /// Gets the message key that this handler is registered for.
+        /// </summary>
+        public ushort MessageKey { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageReflectionHandlerAttribute"/> class with the specified message key.
+        /// </summary>
+        /// <param name="messageKey">The numeric key identifying the message type to handle.</param>
+        public MessageReflectionHandlerAttribute(ushort messageKey)
+        {
+            MessageKey = messageKey;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageReflectionHandlerAttribute"/> class with the specified enum-based message key.
+        /// </summary>
+        /// <param name="messageKey">The enum value identifying the message type to handle.</param>
+        public MessageReflectionHandlerAttribute(Enum messageKey)
+        {
+            MessageKey = (ushort)(object)messageKey;
+        }
+    }
 }
