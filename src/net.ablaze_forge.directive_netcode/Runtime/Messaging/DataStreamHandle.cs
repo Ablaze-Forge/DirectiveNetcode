@@ -55,12 +55,13 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// <param name="messageMetadata"></param>
         /// <param name="connectionUIDs">A collection of unique identifiers for the connections this handler is associated with.</param>
         /// <param name="writer">The data stream writer to be managed by this handler.</param>
-        public ServerMultiDataStreamHandler(ushort messageId, MessageMetadataHandler messageMetadata, IEnumerable<ulong> connectionUIDs, ref DataStreamWriter writer)
+        public ServerMultiDataStreamHandler(ushort messageId, int networkPipelineIndex, MessageMetadataHandler messageMetadata, IEnumerable<ulong> connectionUIDs, ref DataStreamWriter writer)
         {
             ConnectionUIDs = connectionUIDs.ToArray();
             UnderlyingWriter = writer;
             MessageId = messageId;
             MessageMetadata = messageMetadata;
+            NetworkPipelineIndex = networkPipelineIndex;
         }
 
         /// <summary>
@@ -82,6 +83,11 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// The <see cref="MessageMetadataHandler"/> associated with the message to process.
         /// </summary>
         public readonly MessageMetadataHandler MessageMetadata;
+
+        /// <summary>
+        /// The index of the <see cref="NetworkPipeline"/> to be used for the message.
+        /// </summary>
+        public readonly int NetworkPipelineIndex;
     }
 
     /// <summary>
@@ -96,11 +102,12 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// <param name="messageId">The id of the message being sent.</param>
         /// <param name="messageMetadata"></param>
         /// <param name="writer">The data stream writer to be managed by this handler.</param>
-        public ServerBroadcastDataStreamHandler(ushort messageId, MessageMetadataHandler messageMetadata, ref DataStreamWriter writer)
+        public ServerBroadcastDataStreamHandler(ushort messageId, int networkPipelineIndex, MessageMetadataHandler messageMetadata, ref DataStreamWriter writer)
         {
             UnderlyingWriter = writer;
             MessageId = messageId;
             MessageMetadata = messageMetadata;
+            NetworkPipelineIndex = networkPipelineIndex;
         }
 
         /// <summary>
@@ -117,6 +124,11 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// The <see cref="MessageMetadataHandler"/> associated with the message to process.
         /// </summary>
         public readonly MessageMetadataHandler MessageMetadata;
+
+        /// <summary>
+        /// The index of the <see cref="NetworkPipeline"/> to be used for the message.
+        /// </summary>
+        public readonly int NetworkPipelineIndex;
     }
 
     /// <summary>

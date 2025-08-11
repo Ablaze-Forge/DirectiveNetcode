@@ -30,9 +30,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         private ulong m_LastDataStreamHandlerID = 0;
         private List<ServerDataStreamHandler> m_DataStreamHandlers;
 
-        private NetworkPipeline m_ReliablePipeline;
-        private NetworkPipeline m_UnreliablePipeline;
-        private NetworkPipeline m_UnreliableSequencedPipeline;
+        private NetworkPipeline[] m_NetworkPipelines;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerEngine"/> class.
@@ -44,7 +42,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// The type of PlayerLoopSystem to inject into (e.g., typeof(FixedUpdate), typeof(Update)).
         /// Defaults to typeof(FixedUpdate) if null.
         /// </param>
-        public ServerEngine(ServerMessageReceiverBase messageReceiver, ServerToClientSendPipeline pipeline, ServerMessageSenderBase messageSender, ErrorCodeLogger logger, Type updateType = null) : base(logger, updateType)
+        public ServerEngine(ServerMessageReceiverBase messageReceiver, ServerMessageSenderBase messageSender, ErrorCodeLogger logger, Type updateType = null) : base(logger, updateType)
         {
             m_MessageReceiver = messageReceiver;
             m_MessageSender = messageSender;
@@ -360,6 +358,22 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
                 NetworkDriver driver = config.GetNetworkDriver(settings);
 
+                NetworkPipeline unreliable = driver.CreatePipeline(config.UnreliablePipelineIds.Stages);
+                NetworkPipeline reliable = driver.CreatePipeline(config.ReliablePipelineIds.Stages);
+                NetworkPipeline unreliableOrdered = driver.CreatePipeline(config.UnreliableSequencedPipelineIds.Stages);
+                NetworkPipeline fragmented = driver.CreatePipeline(config.FragmentationPipelineIds.Stages);
+
+                if (i == 0)
+                {
+                    m_NetworkPipelines = new NetworkPipeline[]
+                    {
+                        unreliable,
+                        reliable,
+                        unreliableOrdered,
+                        fragmented
+                    };
+                }
+
                 NetworkEndpoint endpoint = config.UseIPv4 ? NetworkEndpoint.AnyIpv4 : NetworkEndpoint.AnyIpv6;
 
                 endpoint.WithPort(config.Port);
@@ -403,10 +417,11 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </summary>
         /// <param name="connectionUID">The unique identifier of the client connection to send the message to.</param>
         /// <param name="messageId">The identifier of the message type to be sent.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
         /// <param name="messageMetadata">The metadata handler containing information about the message to be sent.</param>
         /// <param name="handler">The data stream handler for managing the send operation.</param>
         /// <returns><c>true</c> if the send operation was successfully initiated; otherwise, <c>false</c>.</returns>
-        private bool BeginSend(ulong connectionUID, ushort messageId, MessageMetadataHandler messageMetadata, out ServerDataStreamHandler handler)
+        private bool BeginSend(ulong connectionUID, ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, out ServerDataStreamHandler handler)
         {
             handler = null;
 
@@ -415,7 +430,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 return false;
             }
 
-            m_Drivers.BeginSend(tracker.Connection, out DataStreamWriter writer);
+            m_Drivers.BeginSend(m_NetworkPipelines[(int)pipelineIndex], tracker.Connection, out DataStreamWriter writer);
 
             if (!writer.CanWriteFixedLength(sizeof(ushort)))
             {
@@ -446,13 +461,14 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// This method prepares a message that can be sent to all connected clients simultaneously.
         /// </summary>
         /// <param name="messageId">The identifier of the message type to be broadcast.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
         /// <param name="messageMetadata">The metadata handler containing information about the message to be broadcast.</param>
         /// <param name="handler">The broadcast data stream handler for managing the broadcast operation.</param>
-        private void BeginBroadcast(ushort messageId, MessageMetadataHandler messageMetadata, out ServerBroadcastDataStreamHandler handler)
+        private void BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, out ServerBroadcastDataStreamHandler handler)
         {
             DataStreamWriter writer = new();
 
-            handler = new(messageId, messageMetadata, ref writer);
+            handler = new(messageId, (int)pipelineIndex, messageMetadata, ref writer);
         }
 
         /// <summary>
@@ -460,14 +476,15 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// This method prepares a message that can be sent to a specific subset of connected clients.
         /// </summary>
         /// <param name="messageId">The identifier of the message type to be sent.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
         /// <param name="messageMetadata">The metadata handler containing information about the message to be sent.</param>
         /// <param name="connectionUIDs">An enumerable collection of unique identifiers for the client connections to send the message to.</param>
         /// <param name="handler">The multi-send data stream handler for managing the multi-send operation.</param>
-        private void BeginMultiSend(ushort messageId, MessageMetadataHandler messageMetadata, IEnumerable<ulong> connectionUIDs, out ServerMultiDataStreamHandler handler)
+        private void BeginMultiSend(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, IEnumerable<ulong> connectionUIDs, out ServerMultiDataStreamHandler handler)
         {
             DataStreamWriter writer = new();
 
-            handler = new(messageId, messageMetadata, connectionUIDs, ref writer);
+            handler = new(messageId, (int)pipelineIndex, messageMetadata, connectionUIDs, ref writer);
         }
 
         /// <summary>
@@ -475,11 +492,12 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </summary>
         /// <param name="connectionUID">The unique identifier of the client connection to send the message to.</param>
         /// <param name="messageId">The identifier of the message type to be sent.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
         /// <param name="handler">The data stream handler for managing the send operation.</param>
         /// <returns><c>true</c> if the send operation was successfully initiated; otherwise, <c>false</c>.</returns>
-        public bool BeginSend(ulong connectionUID, ushort messageId, out ServerDataStreamHandler handler)
+        public bool BeginSend(ulong connectionUID, ushort messageId, NetworkPipelineIndex pipelineIndex, out ServerDataStreamHandler handler)
         {
-            return BeginSend(connectionUID, messageId, MessageMetadataHandler.Default, out handler);
+            return BeginSend(connectionUID, messageId, pipelineIndex, MessageMetadataHandler.Default, out handler);
         }
 
         /// <summary>
@@ -488,9 +506,9 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </summary>
         /// <param name="messageId">The identifier of the message type to be broadcast.</param>
         /// <param name="handler">The broadcast data stream handler for managing the broadcast operation.</param>
-        public void BeginBroadcast(ushort messageId, out ServerBroadcastDataStreamHandler handler)
+        public void BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, out ServerBroadcastDataStreamHandler handler)
         {
-            BeginBroadcast(messageId, MessageMetadataHandler.Default, out handler);
+            BeginBroadcast(messageId, pipelineIndex, MessageMetadataHandler.Default, out handler);
         }
 
         /// <summary>
@@ -500,9 +518,9 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="messageId">The identifier of the message type to be sent.</param>
         /// <param name="connectionUIDs">An enumerable collection of unique identifiers for the client connections to send the message to.</param>
         /// <param name="handler">The multi-send data stream handler for managing the multi-send operation.</param>
-        public void BeginMultiSend(ushort messageId, IEnumerable<ulong> connectionUIDs, out ServerMultiDataStreamHandler handler)
+        public void BeginMultiSend(ushort messageId, NetworkPipelineIndex pipelineIndex, IEnumerable<ulong> connectionUIDs, out ServerMultiDataStreamHandler handler)
         {
-            BeginMultiSend(messageId, MessageMetadataHandler.Default, connectionUIDs, out handler);
+            BeginMultiSend(messageId, pipelineIndex, MessageMetadataHandler.Default, connectionUIDs, out handler);
         }
 
         /// <summary>
