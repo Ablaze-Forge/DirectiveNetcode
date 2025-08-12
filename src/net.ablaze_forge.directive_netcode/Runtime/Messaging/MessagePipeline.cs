@@ -18,7 +18,7 @@ public class MessagePipeline<T, TMessageParams> where T : IPipelineStep<TMessage
     /// Adds multiple pipeline steps to the pipeline.
     /// </summary>
     /// <param name="steps">The pipeline steps to add.</param>
-    internal void AddSteps(params T[] steps)
+    public void AddSteps(params T[] steps)
     {
         Steps.AddRange(steps);
     }
@@ -27,7 +27,7 @@ public class MessagePipeline<T, TMessageParams> where T : IPipelineStep<TMessage
     /// Adds a single pipeline step to the pipeline.
     /// </summary>
     /// <param name="step">The pipeline step to add.</param>
-    internal void AddStep(T step)
+    public void AddStep(T step)
     {
         Steps.Add(step);
     }
