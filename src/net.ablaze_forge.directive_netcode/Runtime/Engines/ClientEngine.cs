@@ -140,6 +140,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="driverConfiguration">
         /// A <see cref="NetworkDriverConfiguration"/> defining the network protocol (UDP/Websocket), IP version (IPv4/IPv6), and port for the client to use.
         /// </param>
+        /// <param name="ipAddress">The ip address the client should connect to. Null, empty or invalid strings will default to loopback ip.
+        /// Defaults to <c>null<c>.</param>
         /// <returns>
         /// <c>true</c> if the client engine was successfully initialized and the connection attempt was made.
         /// <c>false</c> if the client could not start, for example if a driver configuration was not provided or if the client is already running.
@@ -150,9 +152,9 @@ namespace AblazeForge.DirectiveNetcode.Engines
         ///     <item><description><paramref name="driverConfiguration"/> is <c>null</c>.</description></item>
         ///     <item><description>The client engine has already been started (a NetworkDriver instance is already created).</description></item>
         /// </list>
-        /// If this method returns <c>true</c>, it does not guarantee a successful connection. You must listen for connection events (like the `NetworkEvent.Type.Connect` event) to confirm the connection has been established.
+        /// If this method returns <c>true</c>, it does not guarantee a successful connection. You must listen for connection events to confirm the connection has been established.
         /// </remarks>
-        public bool Start(NetworkSettings settings, ushort port, NetworkDriverConfiguration driverConfiguration)
+        public bool Start(NetworkSettings settings, ushort port, NetworkDriverConfiguration driverConfiguration, string ipAddress = null)
         {
             if (driverConfiguration == null)
             {
@@ -183,7 +185,10 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 fragmented
             };
 
-            NetworkEndpoint endpoint = driverConfiguration.UseIPv4 ? NetworkEndpoint.AnyIpv4 : NetworkEndpoint.AnyIpv6;
+            if (string.IsNullOrEmpty(ipAddress) || !NetworkEndpoint.TryParse(ipAddress, port, out NetworkEndpoint endpoint))
+            {
+                endpoint = driverConfiguration.UseIPv4 ? NetworkEndpoint.LoopbackIpv4 : NetworkEndpoint.LoopbackIpv6;
+            }
 
             endpoint.WithPort(driverConfiguration.Port);
 
