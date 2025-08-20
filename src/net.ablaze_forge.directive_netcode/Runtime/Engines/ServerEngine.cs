@@ -28,7 +28,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         private int m_MaxConnections;
 
         private ulong m_LastDataStreamHandlerID = 0;
-        private List<ServerDataStreamHandler> m_DataStreamHandlers;
+        private readonly List<ServerDataStreamHandler> m_DataStreamHandlers = new();
 
         private NetworkPipeline[] m_NetworkPipelines;
 
@@ -341,6 +341,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 Logger.LogError(this, ErrorCodes.ServerEngine_MaxPlayersZero, "The maximum of players must be provided and must be a value greater than 0.");
                 return;
             }
+
+            m_DataStreamHandlers.Clear();
 
             m_LastIssuedUID = 0; // UIDs will start from 1 due to pre-increment in IssueUID()
 

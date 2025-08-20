@@ -25,7 +25,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         private readonly ClientMessageSenderBase m_MessageSender;
 
         private ulong m_LastDataStreamHandlerID = 0;
-        private List<ClientDataStreamHandler> m_DataStreamHandlers;
+        private readonly List<ClientDataStreamHandler> m_DataStreamHandlers = new();
 
         private NetworkPipeline[] m_NetworkPipelines;
 
@@ -84,12 +84,11 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 return;
             }
 
-            DataStreamReader stream;
             NetworkEvent.Type cmd;
 
             bool skipProcessingFurtherEventsForTheConnection = false;
 
-            while ((cmd = m_Driver.PopEventForConnection(m_Connection, out stream)) != NetworkEvent.Type.Empty
+            while ((cmd = m_Driver.PopEventForConnection(m_Connection, out DataStreamReader stream)) != NetworkEvent.Type.Empty
                 && !skipProcessingFurtherEventsForTheConnection)
             {
                 switch (cmd)
@@ -164,6 +163,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
             {
                 return false;
             }
+
+            m_DataStreamHandlers.Clear();
 
             m_LastDataStreamHandlerID = 0;
 
