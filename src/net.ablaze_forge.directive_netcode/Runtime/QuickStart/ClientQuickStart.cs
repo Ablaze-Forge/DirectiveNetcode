@@ -46,7 +46,7 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             /// <returns>A <see cref="ClientMessageReceiverConfigStep"/> instance to continue the configuration process.</returns>
             public ClientMessageReceiverConfigStep CreateMessageDispatcher(out MessageDispatcher dispatcher)
             {
-                dispatcher = new(m_Logger);
+                dispatcher = new(m_Logger, MessageSide.Client);
 
                 return new(dispatcher, m_Logger);
             }

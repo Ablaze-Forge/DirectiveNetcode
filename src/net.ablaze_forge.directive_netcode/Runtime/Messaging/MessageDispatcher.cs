@@ -20,12 +20,20 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         private readonly ILogger m_Logger;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MessageDispatcher"/> class with the specified logger.
+        /// The message side configuration that determines which handlers are registered during reflection-based registration.
+        /// This field is used to filter message handlers based on their <see cref="MessageSide"/> attribute.
+        /// </summary>
+        private readonly MessageSide m_MessageSide;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageDispatcher"/> class with the specified logger and message side configuration.
         /// </summary>
         /// <param name="logger">The logger instance to use for logging messages and errors.</param>
-        public MessageDispatcher(ILogger logger)
+        /// <param name="side">The message side used to filter which handlers are registered. Only handlers whose <see cref="MessageSide"/> attribute includes this value will be registered. Defaults to <see cref="MessageSide.None"/>, which registers all handlers.</param>
+        public MessageDispatcher(ILogger logger, MessageSide side = MessageSide.None)
         {
             m_Logger = logger;
+            m_MessageSide = side;
         }
 
         /// <summary>
@@ -144,18 +152,13 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// Registers message handlers via reflection by scanning the specified assembly for methods decorated with
         /// <see cref="MessageHandlerAttribute"/> or <see cref="MessageReflectionHandlerAttribute"/>.
         /// </summary>
-        /// <remarks>
-        /// This method performs the following operations:
-        /// <list type="bullet">
-        /// <item><description>Scans all public types in the specified assembly</description></item>
-        /// <item><description>Identifies methods decorated with <see cref="MessageHandlerAttribute"/> for direct delegate registration</description></item>
-        /// <item><description>Identifies methods decorated with <see cref="MessageReflectionHandlerAttribute"/> for reflection-based registration</description></item>
-        /// <item><description>Creates appropriate handler delegates and registers them with the dispatcher</description></item>
-        /// <item><description>Handles both static and instance methods appropriately</description></item>
-        /// </list>
-        /// </remarks>
         /// <param name="assembly">The assembly to scan for message handlers. If null, uses the calling assembly.</param>
         /// <returns>The number of message handlers successfully registered.</returns>
+        /// <remarks>
+        /// This method uses the dispatcher's `MessageSide` configuration (set during construction) to filter which handlers are registered.
+        /// Only methods with a <see cref="MessageHandlerAttribute"/> or <see cref="MessageReflectionHandlerAttribute"/> whose `MessageSide` property contains the dispatcher's configured side will be registered. 
+        /// For example, a dispatcher configured with <see cref="MessageSide.Client"/> will register handlers marked with <see cref="MessageSide.Client"/>, <see cref="MessageSide.Common"/>, or <see cref="MessageSide.Any"/>.
+        /// </remarks>
         public int RegisterMessagesViaReflection(Assembly assembly = null)
         {
             if (assembly == null)
@@ -178,6 +181,11 @@ namespace AblazeForge.DirectiveNetcode.Messaging
                     {
                         try
                         {
+                            if (!messageHandlerAttribute.MessageSide.HasFlag(m_MessageSide))
+                            {
+                                continue;
+                            }
+
                             object target = method.IsStatic ? null : Activator.CreateInstance(type);
                             MessageHandler handler = (MessageHandler)Delegate.CreateDelegate(typeof(MessageHandler), target, method, false);
 
@@ -198,6 +206,11 @@ namespace AblazeForge.DirectiveNetcode.Messaging
                     {
                         try
                         {
+                            if (!messageHandlerAttribute.MessageSide.HasFlag(m_MessageSide))
+                            {
+                                continue;
+                            }
+
                             object target = method.IsStatic ? null : Activator.CreateInstance(type);
                             RegisterReflectionHandler(reflectionHandlerAttribute.MessageKey, target, method);
                             registeredCount++;
@@ -409,24 +422,33 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// <summary>
         /// Gets the message key that this handler is registered for.
         /// </summary>
-        public ushort MessageKey { get; }
+        public ushort MessageKey { get; private set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MessageHandlerAttribute"/> class with the specified message key.
+        /// Gets the message side configuration that determines which side of the network communication this handler is intended for.
+        /// This property is used to filter handlers during reflection-based registration based on the dispatcher's message side configuration.
+        /// </summary>
+        public MessageSide MessageSide { get; private set; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageHandlerAttribute"/> class with the specified message key and message side configuration.
         /// </summary>
         /// <param name="messageKey">The numeric key identifying the message type to handle.</param>
-        public MessageHandlerAttribute(ushort messageKey)
+        /// <param name="messageSide">The message side configuration that determines which side of the network communication this handler is intended for.</param>
+        public MessageHandlerAttribute(ushort messageKey, MessageSide messageSide)
         {
             MessageKey = messageKey;
+            MessageSide = messageSide;
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MessageHandlerAttribute"/> class with the specified enum-based message key.
         /// </summary>
         /// <param name="messageKey">The enum value identifying the message type to handle.</param>
-        public MessageHandlerAttribute(Enum messageKey)
+        public MessageHandlerAttribute(Enum messageKey, MessageSide messageSide)
         {
             MessageKey = (ushort)(object)messageKey;
+            MessageSide = messageSide;
         }
     }
 
@@ -454,24 +476,72 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// <summary>
         /// Gets the message key that this handler is registered for.
         /// </summary>
-        public ushort MessageKey { get; }
+        public ushort MessageKey { get; private set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MessageReflectionHandlerAttribute"/> class with the specified message key.
+        /// Gets the message side configuration that determines which side of the network communication this handler is intended for.
+        /// This property is used to filter handlers during reflection-based registration based on the dispatcher's message side configuration.
+        /// </summary>
+        public MessageSide MessageSide { get; private set; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageReflectionHandlerAttribute"/> class with the specified message key and message side configuration.
         /// </summary>
         /// <param name="messageKey">The numeric key identifying the message type to handle.</param>
-        public MessageReflectionHandlerAttribute(ushort messageKey)
+        /// <param name="messageSide">The message side configuration that determines which side of the network communication this handler is intended for. Defaults to <see cref="MessageSide.Any"/>.</param>
+        public MessageReflectionHandlerAttribute(ushort messageKey, MessageSide messageSide = MessageSide.Any)
         {
             MessageKey = messageKey;
+            MessageSide = messageSide;
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MessageReflectionHandlerAttribute"/> class with the specified enum-based message key.
+        /// Initializes a new instance of the <see cref="MessageReflectionHandlerAttribute"/> class with the specified enum-based message key and message side configuration.
         /// </summary>
         /// <param name="messageKey">The enum value identifying the message type to handle.</param>
-        public MessageReflectionHandlerAttribute(Enum messageKey)
+        /// <param name="messageSide">The message side configuration that determines which side of the network communication this handler is intended for. Defaults to <see cref="MessageSide.Any"/>.</param>
+        public MessageReflectionHandlerAttribute(Enum messageKey, MessageSide messageSide = MessageSide.Any)
         {
             MessageKey = (ushort)(object)messageKey;
+            MessageSide = messageSide;
         }
+    }
+
+    /// <summary>
+    /// Specifies which side of the network communication a message handler is intended for.
+    /// This enum is used to filter message handlers during reflection-based registration.
+    /// </summary>
+    /// <remarks>
+    /// The <see cref="MessageSide"/> enum allows for fine-grained control over which message handlersare registered based on whether they are intended for client-side, server-side, or both sides of the network communication.
+    /// </remarks>
+    [Flags]
+    public enum MessageSide : byte
+    {
+        /// <summary>
+        /// No specific message side specified. Handlers with this value will not be filtered.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// Message handler is intended for client-side processing only.
+        /// </summary>
+        Client = 1 << 0,
+
+        /// <summary>
+        /// Message handler is intended for server-side processing only.
+        /// </summary>
+        Server = 1 << 1,
+
+        /// <summary>
+        /// Message handler is intended for both client and server-side processing.
+        /// This is equivalent to <see cref="Client"/> | <see cref="Server"/>.
+        /// </summary>
+        Common = Client | Server,
+
+        /// <summary>
+        /// Message handler should be registered regardless of message side filtering.
+        /// This value matches any message side configuration.
+        /// </summary>
+        Any = byte.MaxValue,
     }
 }
