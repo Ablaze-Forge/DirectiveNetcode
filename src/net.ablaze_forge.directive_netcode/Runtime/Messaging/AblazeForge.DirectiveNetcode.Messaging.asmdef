@@ -1,12 +1,10 @@
 {
-    "name": "ablaze_forge.directive_netcode.engines",
-    "rootNamespace": "AblazeForge.DirectiveNetcode.Engines",
+    "name": "AblazeForge.DirectiveNetcode.Messaging",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Messaging",
     "references": [
-        "Unity.Networking.Transport",
         "Unity.Collections",
-        "ablaze_forge.directive_netcode.messaging",
-        "ablaze_forge.directive_netcode.logging",
-        "ablaze_forge.directive_netcode.unity.extensions"
+        "AblazeForge.DirectiveNetcode.Unity.Extensions",
+        "AblazeForge.DirectiveNetcode.Messaging.NetworkVariables"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

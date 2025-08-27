@@ -1,10 +1,10 @@
 {
-    "name": "ablaze_forge.directive_netcode.QuickStart",
+    "name": "AblazeForge.DirectiveNetcode.QuickStart",
     "rootNamespace": "AblazeForge.DirectiveNetcode.QuickStart",
     "references": [
-        "GUID:4f0b65a1dcecf134eaf9417d34fcf8ed",
-        "GUID:473e5bb615a6adb4a8ab60903e101635",
-        "GUID:75b01657d65ca49478b895a93ea5d005"
+        "AblazeForge.DirectiveNetcode.Engines",
+        "AblazeForge.DirectiveNetcode.Messaging",
+        "AblazeForge.DirectiveNetcode.Logging"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

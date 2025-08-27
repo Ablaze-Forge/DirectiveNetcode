@@ -1,9 +1,7 @@
 {
-    "name": "ablaze_forge.directive_netcode.unity.extensions",
-    "rootNamespace": "AblazeForge.DirectiveNetcode.Unity.Extensions",
-    "references": [
-        "GUID:e0cd26848372d4e5c891c569017e11f1"
-    ],
+    "name": "AblazeForge.DirectiveNetcode",
+    "rootNamespace": "AblazeForge.DirectiveNetcode",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

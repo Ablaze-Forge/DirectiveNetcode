@@ -1,5 +1,5 @@
 {
-    "name": "ablaze_forge.directive_netcode.logging",
+    "name": "AblazeForge.DirectiveNetcode.Logging",
     "rootNamespace": "AblazeForge.DirectiveNetcode.Logging",
     "references": [],
     "includePlatforms": [],
