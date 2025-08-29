@@ -37,21 +37,16 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         }
 
         /// <summary>
-        /// The dictionary mapping message keys to their registered direct delegate handlers.
+        /// The dictionary mapping message keys to their registered delegate handlers.
         /// </summary>
-        private readonly Dictionary<ushort, MessageHandler> m_Handlers = new();
+        private readonly Dictionary<ushort, MessageDelegate> m_Handlers = new();
 
         /// <summary>
-        /// The dictionary mapping message keys to their registered reflection-based handlers.
-        /// </summary>
-        private readonly Dictionary<ushort, ReflectionHandler> m_ReflectionHandlers = new();
-
-        /// <summary>
-        /// Registers a direct delegate handler for messages with the specified key.
+        /// Registers a delegate handler for messages with the specified key.
         /// </summary>
         /// <param name="messageKey">The key identifying the type of message to handle.</param>
         /// <param name="handler">The delegate handler to register.</param>
-        public void RegisterHandler(ushort messageKey, MessageHandler handler)
+        public void RegisterHandler(ushort messageKey, MessageDelegate handler)
         {
             if (m_Handlers.ContainsKey(messageKey))
             {
@@ -71,15 +66,11 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// <param name="method">The method information for the handler method.</param>
         public void RegisterReflectionHandler(ushort messageKey, object target, MethodInfo method)
         {
-            if (m_ReflectionHandlers.ContainsKey(messageKey))
-            {
-                m_Logger.LogError(GetType().Name, $"Reflection handler already registered for message key {messageKey}.");
-                return;
-            }
             try
             {
-                var reflectionHandler = new ReflectionHandler(target, method);
-                m_ReflectionHandlers[messageKey] = reflectionHandler;
+                MessageDelegate handler = MessageHandlerReflectionFactory.CreateDelegate(target, method);
+
+                RegisterHandler(messageKey, handler);
             }
             catch (ArgumentException ex)
             {
@@ -88,11 +79,11 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         }
 
         /// <summary>
-        /// Unregisters a direct delegate handler for messages with the specified key.
+        /// Unregisters a delegate handler for messages with the specified key.
         /// </summary>
         /// <param name="messageKey">The key identifying the type of message to unregister.</param>
         /// <param name="handler">The delegate handler to unregister.</param>
-        public void UnregisterHandler(ushort messageKey, MessageHandler handler)
+        public void UnregisterHandler(ushort messageKey, MessageDelegate handler)
         {
             if (m_Handlers.ContainsKey(messageKey))
             {
@@ -106,13 +97,12 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         }
 
         /// <summary>
-        /// Removes all handlers (both direct and reflection-based) for the specified message key.
+        /// Removes all handlers for the specified message key.
         /// </summary>
         /// <param name="messageKey">The key identifying the type of message to remove.</param>
         public void RemoveMessage(ushort messageKey)
         {
             m_Handlers.Remove(messageKey);
-            m_ReflectionHandlers.Remove(messageKey);
         }
 
         /// <summary>
@@ -127,19 +117,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
             if (m_Handlers.TryGetValue(messageKey, out var handler))
             {
                 handler?.Invoke(connectionUID, messageMetadata, stream);
-                return;
-            }
-            else if (m_ReflectionHandlers.TryGetValue(messageKey, out var reflectionHandler))
-            {
-                try
-                {
-                    reflectionHandler.Invoke(connectionUID, messageMetadata, stream);
-                }
-                catch (Exception ex)
-                {
-                    m_Logger.LogError(GetType().Name, $"Exception invoking reflection handler for message key {messageKey}: {ex}");
-                }
-
                 return;
             }
             else
@@ -187,7 +164,7 @@ namespace AblazeForge.DirectiveNetcode.Messaging
                             }
 
                             object target = method.IsStatic ? null : Activator.CreateInstance(type);
-                            MessageHandler handler = (MessageHandler)Delegate.CreateDelegate(typeof(MessageHandler), target, method, false);
+                            MessageDelegate handler = (MessageDelegate)Delegate.CreateDelegate(typeof(MessageDelegate), target, method, false);
 
                             if (handler != null)
                             {
@@ -227,31 +204,14 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         }
 
         /// <summary>
-        /// Handles reflection-based message processing by dynamically invoking methods with deserialized parameters.
-        /// This class uses compiled expressions for efficient method invocation and parameter deserialization.
+        /// A factory class that uses reflection to create <see cref="MessageDelegate"/> delegates.
         /// </summary>
-        private class ReflectionHandler
+        /// <remarks>
+        /// This class dynamically compiles an expression tree to create a high-performance delegate that can handle incoming messages based on a provided method's signature.
+        /// It supports methods with parameters that can be deserialized from a data stream, as well as special parameters for connection UID and message metadata.
+        /// </remarks>
+        private static class MessageHandlerReflectionFactory
         {
-            /// <summary>
-            /// The parameter information for the subscriber method.
-            /// </summary>
-            private readonly ParameterInfo[] subscriberMethodParameters;
-
-            /// <summary>
-            /// The names of the parameters for the subscriber method.
-            /// </summary>
-            private readonly string[] parameterNames;
-
-            /// <summary>
-            /// The compiled invoker delegate for efficient method invocation.
-            /// </summary>
-            private readonly CompiledInvokerDelegate compiledInvoker;
-
-            /// <summary>
-            /// The cached deserializers for each parameter of the subscriber method.
-            /// </summary>
-            private readonly Deserializers.Deserializer[] cachedDeserializers;
-
             /// <summary>
             /// The name of the connection UID parameter.
             /// </summary>
@@ -263,25 +223,29 @@ namespace AblazeForge.DirectiveNetcode.Messaging
             private const string messageMetadataParameterName = "messageMetadata";
 
             /// <summary>
-            /// Initializes a new instance of the <see cref="ReflectionHandler"/> class with the specified target object and method information.
+            /// Creates a <see cref="MessageDelegate"/> for the method provided.
             /// </summary>
             /// <param name="target">The target object instance for the method, or null for static methods.</param>
             /// <param name="method">The method information for the handler method.</param>
             /// <exception cref="ArgumentException">Thrown when target is null for non-static methods or when no deserializer is found for a parameter type.</exception>
-            public ReflectionHandler(object target, MethodInfo method)
+            /// <returns>The compiled <see cref="MessageDelegate"/> delegate</returns>
+            public static MessageDelegate CreateDelegate(object target, MethodInfo method)
             {
                 if (!method.IsStatic && target == null)
                 {
                     throw new ArgumentException("Target cannot be null for non-static methods.", nameof(target));
                 }
+
                 if (method.IsStatic && target != null)
                 {
                     target = null;
                 }
 
-                subscriberMethodParameters = method.GetParameters();
-                parameterNames = new string[subscriberMethodParameters.Length];
-                cachedDeserializers = new Deserializers.Deserializer[subscriberMethodParameters.Length];
+                ParameterInfo[] subscriberMethodParameters = method.GetParameters();
+
+                string[] parameterNames = new string[subscriberMethodParameters.Length];
+
+                Deserializers.Deserializer[] cachedDeserializers = new Deserializers.Deserializer[subscriberMethodParameters.Length];
 
                 var returnLabel = Expression.Label("returnFromHandler");
 
@@ -311,12 +275,7 @@ namespace AblazeForge.DirectiveNetcode.Messaging
                     }
                     else
                     {
-                        var deserializer = Deserializers.GetDeserializer(param.ParameterType);
-
-                        if (deserializer == null)
-                        {
-                            throw new ArgumentException($"No deserializer found for parameter type {param.ParameterType} in method {method.Name}");
-                        }
+                        var deserializer = Deserializers.GetDeserializer(param.ParameterType) ?? throw new ArgumentException($"No deserializer found for parameter type {param.ParameterType} in method {method.Name}");
                         cachedDeserializers[i] = deserializer;
 
                         var deserializerConstant = Expression.Constant(deserializer, typeof(Deserializers.Deserializer));
@@ -364,33 +323,14 @@ namespace AblazeForge.DirectiveNetcode.Messaging
 
                 var body = Expression.Block(localVariables, blockExpressions);
 
-                compiledInvoker = Expression.Lambda<CompiledInvokerDelegate>(
+                return Expression.Lambda<MessageDelegate>(
                     body,
                     connectionUIDParam,
                     messageMetadataParam,
                     streamParam
                 ).Compile();
             }
-
-            /// <summary>
-            /// Invokes the handler method with the specified parameters.
-            /// </summary>
-            /// <param name="connectionUID">The unique identifier of the connection that sent the message.</param>
-            /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
-            /// <param name="stream">The data stream reader containing the message data.</param>
-            public void Invoke(ulong connectionUID, MessageMetadataHandler messageMetadata, DataStreamReader stream)
-            {
-                compiledInvoker(connectionUID, messageMetadata, ref stream);
-            }
         }
-
-        /// <summary>
-        /// Represents a delegate for compiled invoker methods that process messages with connection information, metadata, and data stream.
-        /// </summary>
-        /// <param name="connectionUID">The unique identifier of the connection that sent the message.</param>
-        /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
-        /// <param name="stream">The data stream reader containing the message data.</param>
-        public delegate void CompiledInvokerDelegate(ulong connectionUID, MessageMetadataHandler messageMetadata, ref DataStreamReader stream);
     }
 
     /// <summary>
@@ -399,7 +339,7 @@ namespace AblazeForge.DirectiveNetcode.Messaging
     /// <param name="connectionUID">The unique identifier of the connection that sent the message.</param>
     /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
     /// <param name="stream">The data stream reader containing the message data.</param>
-    public delegate void MessageHandler(ulong connectionUID, MessageMetadataHandler messageMetadata, DataStreamReader stream);
+    public delegate void MessageDelegate(ulong connectionUID, MessageMetadataHandler messageMetadata, DataStreamReader stream);
 
     /// <summary>
     /// Specifies that a method should be registered as a direct message handler for network messages.
