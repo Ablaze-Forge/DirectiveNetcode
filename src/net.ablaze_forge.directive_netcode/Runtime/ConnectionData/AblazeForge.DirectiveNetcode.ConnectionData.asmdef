@@ -1,0 +1,14 @@
+{
+    "name": "AblazeForge.DirectiveNetcode.ConnectionData",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.ConnectionData",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

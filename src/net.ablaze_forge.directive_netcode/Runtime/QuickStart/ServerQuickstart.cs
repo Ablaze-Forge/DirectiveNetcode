@@ -1,3 +1,4 @@
+using AblazeForge.DirectiveNetcode.ConnectionData;
 using AblazeForge.DirectiveNetcode.Engines;
 using AblazeForge.DirectiveNetcode.Logging;
 using AblazeForge.DirectiveNetcode.Messaging;
@@ -44,9 +45,11 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             /// </summary>
             /// <param name="dispatcher">The created message dispatcher instance.</param>
             /// <returns>A <see cref="ServerMessageReceiverConfigStep"/> instance to continue the configuration process.</returns>
-            public ServerMessageReceiverConfigStep CreateMessageDispatcher(out MessageDispatcher dispatcher)
+            public ServerMessageReceiverConfigStep CreateMessageDispatcher(out MessageDispatcher dispatcher, MessageSide messageSide = MessageSide.Server)
             {
-                dispatcher = new(m_Logger, MessageSide.Server);
+                IConnectionInformationProvider connectionInformationProvider = new ServerDefaultConnectionInformationProvider();
+
+                dispatcher = new(m_Logger, connectionInformationProvider, messageSide);
 
                 return new(dispatcher, m_Logger);
             }

@@ -1,3 +1,4 @@
+using AblazeForge.DirectiveNetcode.ConnectionData;
 using AblazeForge.DirectiveNetcode.Engines;
 using AblazeForge.DirectiveNetcode.Logging;
 using AblazeForge.DirectiveNetcode.Messaging;
@@ -44,11 +45,13 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             /// </summary>
             /// <param name="dispatcher">The created message dispatcher instance.</param>
             /// <returns>A <see cref="ClientMessageReceiverConfigStep"/> instance to continue the configuration process.</returns>
-            public ClientMessageReceiverConfigStep CreateMessageDispatcher(out MessageDispatcher dispatcher)
+            public ClientMessageReceiverConfigStep CreateMessageDispatcher(out MessageDispatcher dispatcher, MessageSide messageSide = MessageSide.Client)
             {
-                dispatcher = new(m_Logger, MessageSide.Client);
+                IConnectionInformationProvider connectionInformationProvider = new ClientDefaultConnectionInformationProvider();
 
-                return new(dispatcher, m_Logger);
+                dispatcher = new(m_Logger, connectionInformationProvider, messageSide);
+
+                return new(dispatcher, connectionInformationProvider, m_Logger);
             }
         }
 
@@ -60,11 +63,13 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             readonly ILogger m_Logger;
             readonly ServerToClientReceivePipeline m_Pipeline = new();
             readonly MessageDispatcher m_MessageDispatcher;
+            readonly IConnectionInformationProvider m_ConnectionInformationProvider;
 
-            internal ClientMessageReceiverConfigStep(MessageDispatcher dispatcher, ILogger logger)
+            internal ClientMessageReceiverConfigStep(MessageDispatcher dispatcher, IConnectionInformationProvider connectionInformationProvider, ILogger logger)
             {
                 m_MessageDispatcher = dispatcher;
                 m_Logger = logger;
+                m_ConnectionInformationProvider = connectionInformationProvider;
             }
 
             /// <summary>

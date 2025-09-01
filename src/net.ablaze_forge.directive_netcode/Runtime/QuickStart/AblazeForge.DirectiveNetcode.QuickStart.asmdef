@@ -4,7 +4,8 @@
     "references": [
         "AblazeForge.DirectiveNetcode.Engines",
         "AblazeForge.DirectiveNetcode.Messaging",
-        "AblazeForge.DirectiveNetcode.Logging"
+        "AblazeForge.DirectiveNetcode.Logging",
+        "AblazeForge.DirectiveNetcode.ConnectionData"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
