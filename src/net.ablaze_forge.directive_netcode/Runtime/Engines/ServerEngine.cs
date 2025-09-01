@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AblazeForge.DirectiveNetcode.ConnectionData;
 using AblazeForge.DirectiveNetcode.Logging;
 using AblazeForge.DirectiveNetcode.Messaging;
 using AblazeForge.DirectiveNetcode.Unity.Extensions;
@@ -59,6 +60,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
         private ulong m_LastDataStreamHandlerID = 0;
         private readonly List<ServerDataStreamHandler> m_DataStreamHandlers = new();
 
+        private readonly IConnectionInformationProvider m_ConnectionInformationProvider;
+
         private NetworkPipeline[] m_NetworkPipelines;
 
         /// <summary>
@@ -71,10 +74,11 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// The type of PlayerLoopSystem to inject into (e.g., typeof(FixedUpdate), typeof(Update)).
         /// Defaults to typeof(FixedUpdate) if null.
         /// </param>
-        public ServerEngine(ServerMessageReceiverBase messageReceiver, ServerMessageSenderBase messageSender, ErrorCodeLogger logger, Type updateType = null) : base(logger, updateType)
+        public ServerEngine(ServerMessageReceiverBase messageReceiver, ServerMessageSenderBase messageSender, IConnectionInformationProvider connectionInformationProvider, ErrorCodeLogger logger, Type updateType = null) : base(logger, updateType)
         {
             m_MessageReceiver = messageReceiver;
             m_MessageSender = messageSender;
+            m_ConnectionInformationProvider = connectionInformationProvider;
         }
 
         /// <summary>
@@ -120,14 +124,18 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
                 if (!handler.IsConnectionCreated)
                 {
+                    ulong connectionUID = handler.ConnectionUID;
+
                     m_Connections.RemoveAtSwapBack(i);
 
-                    if (m_UIDToTracker.TryGetValue(handler.ConnectionUID, out UIDExpirationTracker tracker))
+                    if (m_UIDToTracker.TryGetValue(connectionUID, out UIDExpirationTracker tracker))
                     {
                         // Mark the UID for expiration, allowing it to be cleaned up later by CleanupConnectionTrackers
                         tracker.ExpirationTicks = DateTime.UtcNow.AddMinutes(5).Ticks;
 
-                        OnClientDisconnected.Invoke(this, new(handler.ConnectionUID));
+                        OnClientDisconnected.Invoke(this, new(connectionUID));
+
+                        m_ConnectionInformationProvider.RemoveConnection(connectionUID);
                     }
                 }
             }
@@ -147,6 +155,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
                     ulong UID = IssueUID();
                     m_Connections.Add(new(c, UID));
                     m_UIDToTracker.Add(UID, new(UID, c));
+
+                    m_ConnectionInformationProvider.RegisterConnection(UID);
 
                     OnClientConnected.Invoke(this, new(UID));
                 }

@@ -6,7 +6,8 @@
         "Unity.Collections",
         "AblazeForge.DirectiveNetcode.Messaging",
         "AblazeForge.DirectiveNetcode.Logging",
-        "AblazeForge.DirectiveNetcode.Unity.Extensions"
+        "AblazeForge.DirectiveNetcode.Unity.Extensions",
+        "AblazeForge.DirectiveNetcode.ConnectionData"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

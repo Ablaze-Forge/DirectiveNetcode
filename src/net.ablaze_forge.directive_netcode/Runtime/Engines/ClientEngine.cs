@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AblazeForge.DirectiveNetcode.ConnectionData;
 using AblazeForge.DirectiveNetcode.Logging;
 using AblazeForge.DirectiveNetcode.Messaging;
 using AblazeForge.DirectiveNetcode.Unity.Extensions;
@@ -29,6 +30,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
         private NetworkPipeline[] m_NetworkPipelines;
 
+        private readonly IConnectionInformationProvider m_ConnectionInformationProvider;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ClientEngine"/> class with the specified logger and update type.
         /// </summary>
@@ -37,10 +40,11 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// The type of PlayerLoopSystem to inject into (e.g., typeof(FixedUpdate), typeof(Update)).
         /// Defaults to typeof(FixedUpdate) if null.
         /// </param>
-        public ClientEngine(ClientMessageReceiverBase messageReceiver, ClientMessageSenderBase messageSender, ErrorCodeLogger logger, Type updateType = null) : base(logger, updateType)
+        public ClientEngine(ClientMessageReceiverBase messageReceiver, ClientMessageSenderBase messageSender, IConnectionInformationProvider connectionInformationProvider, ErrorCodeLogger logger, Type updateType = null) : base(logger, updateType)
         {
             m_MessageReceiver = messageReceiver;
             m_MessageSender = messageSender;
+            m_ConnectionInformationProvider = connectionInformationProvider;
         }
 
         /// <summary>
@@ -88,12 +92,13 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             bool skipProcessingFurtherEventsForTheConnection = false;
 
-            while ((cmd = m_Driver.PopEventForConnection(m_Connection, out DataStreamReader stream)) != NetworkEvent.Type.Empty
+            while ((cmd = m_Connection.PopEvent(m_Driver, out DataStreamReader stream)) != NetworkEvent.Type.Empty
                 && !skipProcessingFurtherEventsForTheConnection)
             {
                 switch (cmd)
                 {
                     case NetworkEvent.Type.Connect:
+                        m_ConnectionInformationProvider.RegisterConnection(0);
                         OnConnect.Invoke(this, null);
                         break;
                     case NetworkEvent.Type.Data:
@@ -108,6 +113,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                     case NetworkEvent.Type.Disconnect:
                         Logger.Log(this, $"Client disconnected.");
                         m_Connection = default;
+                        m_ConnectionInformationProvider.RemoveConnection(0);
                         OnDisconnect.Invoke(this, null);
                         skipProcessingFurtherEventsForTheConnection = true;
                         break;

@@ -4,7 +4,8 @@
     "references": [
         "Unity.Collections",
         "AblazeForge.DirectiveNetcode.Unity.Extensions",
-        "AblazeForge.DirectiveNetcode.Messaging.NetworkVariables"
+        "AblazeForge.DirectiveNetcode.Messaging.NetworkVariables",
+        "AblazeForge.DirectiveNetcode.ConnectionData"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

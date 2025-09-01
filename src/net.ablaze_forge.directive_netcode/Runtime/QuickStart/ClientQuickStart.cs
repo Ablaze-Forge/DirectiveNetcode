@@ -90,7 +90,9 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             /// <returns>A <see cref="ClientMessageSenderConfigStep"/> instance to continue the configuration process.</returns>
             public ClientMessageSenderConfigStep FinalizeClientMessageReceiverConfiguration()
             {
-                return new(new ClientMessageReceiver(m_Logger, m_Pipeline, m_MessageDispatcher), m_Logger);
+                ClientMessageReceiverBase clientMessageReceiver = new ClientMessageReceiver(m_Logger, m_Pipeline, m_MessageDispatcher);
+
+                return new(clientMessageReceiver, m_ConnectionInformationProvider, m_Logger);
             }
         }
 
@@ -102,11 +104,13 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             readonly ClientMessageReceiverBase m_MessageReceiverBase;
             readonly ILogger m_Logger;
             readonly ClientToServerSendPipeline m_Pipeline = new();
+            readonly IConnectionInformationProvider m_ConnectionInformationProvider;
 
-            internal ClientMessageSenderConfigStep(ClientMessageReceiverBase messageReceiverBase, ILogger logger)
+            internal ClientMessageSenderConfigStep(ClientMessageReceiverBase messageReceiverBase, IConnectionInformationProvider connectionInformationProvider, ILogger logger)
             {
                 m_MessageReceiverBase = messageReceiverBase;
                 m_Logger = logger;
+                m_ConnectionInformationProvider = connectionInformationProvider;
             }
 
             /// <summary>
@@ -127,7 +131,7 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             /// <returns>An <see cref="EngineBuildStep"/> instance to complete the configuration process.</returns>
             public EngineBuildStep FinalizeServerMessageSenderConfiguration()
             {
-                return new(m_MessageReceiverBase, new ClientMessageSender(m_Logger, m_Pipeline), m_Logger);
+                return new(m_MessageReceiverBase, new ClientMessageSender(m_Logger, m_Pipeline), m_ConnectionInformationProvider, m_Logger);
             }
         }
 
@@ -139,12 +143,14 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             readonly ClientMessageReceiverBase m_MessageReceiverBase;
             readonly ClientMessageSenderBase m_MessageSenderBase;
             readonly ILogger m_Logger;
+            readonly IConnectionInformationProvider m_ConnectionInformationProvider;
 
-            internal EngineBuildStep(ClientMessageReceiverBase messageReceiverBase, ClientMessageSenderBase messageSenderBase, ILogger logger)
+            internal EngineBuildStep(ClientMessageReceiverBase messageReceiverBase, ClientMessageSenderBase messageSenderBase, IConnectionInformationProvider connectionInformationProvider, ILogger logger)
             {
                 m_MessageReceiverBase = messageReceiverBase;
                 m_MessageSenderBase = messageSenderBase;
                 m_Logger = logger;
+                m_ConnectionInformationProvider = connectionInformationProvider;
             }
 
             /// <summary>
@@ -153,7 +159,7 @@ namespace AblazeForge.DirectiveNetcode.QuickStart
             /// <param name="clientEngineInstance">The created client engine instance.</param>
             public void BuildEngine(out ClientEngine clientEngineInstance)
             {
-                clientEngineInstance = new(m_MessageReceiverBase, m_MessageSenderBase, new ErrorCodeLogger(m_Logger));
+                clientEngineInstance = new(m_MessageReceiverBase, m_MessageSenderBase, m_ConnectionInformationProvider, new ErrorCodeLogger(m_Logger));
             }
         }
     }

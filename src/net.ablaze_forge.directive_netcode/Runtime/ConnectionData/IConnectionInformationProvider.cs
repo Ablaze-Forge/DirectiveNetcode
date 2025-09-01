@@ -42,7 +42,7 @@ namespace AblazeForge.DirectiveNetcode.ConnectionData
 
     public class ClientDefaultConnectionInformationProvider : IConnectionInformationProvider
     {
-        public ConnectionInformation MyInformation;
+        public ConnectionInformation ServerInformation;
 
         private readonly ConcurrentDictionary<ulong, ConnectionInformation> m_ConnectionInformationList = new();
 
@@ -50,7 +50,7 @@ namespace AblazeForge.DirectiveNetcode.ConnectionData
         {
             if (uid == 0)
             {
-                MyInformation = new ConnectionInformation(uid, connectionStatus);
+                ServerInformation = new ConnectionInformation(uid, connectionStatus);
 
                 return true;
             }
@@ -62,7 +62,7 @@ namespace AblazeForge.DirectiveNetcode.ConnectionData
         {
             if (uid == 0)
             {
-                MyInformation = null;
+                ServerInformation = null;
                 return true;
             }
 
@@ -73,13 +73,13 @@ namespace AblazeForge.DirectiveNetcode.ConnectionData
         {
             if (uid == 0)
             {
-                if (MyInformation == null)
+                if (ServerInformation == null)
                 {
                     connectionInformation = null;
                     return false;
                 }
 
-                connectionInformation = MyInformation;
+                connectionInformation = ServerInformation;
                 return true;
             }
 
@@ -90,12 +90,12 @@ namespace AblazeForge.DirectiveNetcode.ConnectionData
         {
             if (uid == 0)
             {
-                if (MyInformation == null)
+                if (ServerInformation == null)
                 {
                     return false;
                 }
 
-                return MyInformation.Status.MeetsCriteria(requiredFlags);
+                return ServerInformation.Status.MeetsCriteria(requiredFlags);
             }
 
             if (!m_ConnectionInformationList.TryGetValue(uid, out ConnectionInformation connectionInformation))
