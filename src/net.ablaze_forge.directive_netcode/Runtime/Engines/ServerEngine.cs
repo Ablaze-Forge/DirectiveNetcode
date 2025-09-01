@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using AblazeForge.DirectiveNetcode.Logging;
 using AblazeForge.DirectiveNetcode.Messaging;
-using AblazeForge.DirectiveNetcode.Messaging.Pipelines;
 using AblazeForge.DirectiveNetcode.Unity.Extensions;
 using Unity.Collections;
 using Unity.Networking.Transport;
@@ -16,6 +15,36 @@ namespace AblazeForge.DirectiveNetcode.Engines
     /// </summary>
     public class ServerEngine : EngineBase
     {
+        /// <summary>
+        /// Event triggered when a client successfully connects to the server.
+        /// </summary>
+        public EventHandler<ClientConnectionEventArgs> OnClientConnected;
+
+        /// <summary>
+        /// Event triggered when a client disconnects from the server.
+        /// </summary>
+        public EventHandler<ClientConnectionEventArgs> OnClientDisconnected;
+
+        /// <summary>
+        /// Provides data for client connection events, including the unique client identifier.
+        /// </summary>
+        public class ClientConnectionEventArgs : EventArgs
+        {
+            /// <summary>
+            /// Gets the unique identifier of the connected client.
+            /// </summary>
+            public ulong ClientUID { get; }
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ClientConnectionEventArgs"/> class with the specified client UID.
+            /// </summary>
+            /// <param name="clientUID">The unique identifier of the client.</param>
+            public ClientConnectionEventArgs(ulong clientUID)
+            {
+                ClientUID = clientUID;
+            }
+        }
+
         private readonly ServerMessageReceiverBase m_MessageReceiver;
         private readonly ServerMessageSenderBase m_MessageSender;
 
@@ -97,6 +126,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
                     {
                         // Mark the UID for expiration, allowing it to be cleaned up later by CleanupConnectionTrackers
                         tracker.ExpirationTicks = DateTime.UtcNow.AddMinutes(5).Ticks;
+
+                        OnClientDisconnected.Invoke(this, new(handler.ConnectionUID));
                     }
                 }
             }
@@ -116,6 +147,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
                     ulong UID = IssueUID();
                     m_Connections.Add(new(c, UID));
                     m_UIDToTracker.Add(UID, new(UID, c));
+
+                    OnClientConnected.Invoke(this, new(UID));
                 }
                 else
                 {
