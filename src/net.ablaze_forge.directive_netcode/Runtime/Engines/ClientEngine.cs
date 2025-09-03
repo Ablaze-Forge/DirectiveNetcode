@@ -160,7 +160,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </list>
         /// If this method returns <c>true</c>, it does not guarantee a successful connection. You must listen for connection events to confirm the connection has been established.
         /// </remarks>
-        public bool Start(NetworkSettings settings, ushort port, NetworkDriverConfiguration driverConfiguration, string ipAddress = null)
+        public bool Start(NetworkSettings settings, NetworkDriverConfiguration driverConfiguration, string ipAddress = null)
         {
             if (driverConfiguration == null)
             {
@@ -191,7 +191,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 fragmented
             };
 
-            if (string.IsNullOrEmpty(ipAddress) || !NetworkEndpoint.TryParse(ipAddress, port, out NetworkEndpoint endpoint))
+            if (string.IsNullOrEmpty(ipAddress) || !NetworkEndpoint.TryParse(ipAddress, driverConfiguration.Port, out NetworkEndpoint endpoint))
             {
                 endpoint = driverConfiguration.UseIPv4 ? NetworkEndpoint.LoopbackIpv4 : NetworkEndpoint.LoopbackIpv6;
             }
