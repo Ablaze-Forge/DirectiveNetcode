@@ -1,5 +1,6 @@
 using System;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace AblazeForge.DirectiveNetcode.Unity.Extensions
@@ -197,7 +198,7 @@ namespace AblazeForge.DirectiveNetcode.Unity.Extensions
         /// <summary>
         /// Gets a value indicating whether the read operation was successful.
         /// </summary>
-        public bool Success { get; private set; }
+        public bool IsSuccess { get; private set; }
 
         /// <summary>
         /// Gets the value read from the stream if the operation was successful; otherwise, the default value for the type.
@@ -211,7 +212,7 @@ namespace AblazeForge.DirectiveNetcode.Unity.Extensions
         /// <param name="result">The success status of the read operation.</param>
         internal DataReadResult(T value, bool result)
         {
-            Success = result;
+            IsSuccess = result;
             Value = value;
         }
 

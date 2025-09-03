@@ -1,0 +1,19 @@
+{
+    "name": "AblazeForge.DirectiveNetcode.Unity.Extensions.Unsafe",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Unity.Extensions.Unsafe",
+    "references": [
+        "Unity.Collections",
+        "AblazeForge.DirectiveNetcode.Unity.Extensions"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "DIRECTIVE_NETCODE_UNSAFE"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

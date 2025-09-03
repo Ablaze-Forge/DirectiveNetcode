@@ -551,8 +551,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
                 connectionUIDParam = ConnectionUIDParameterExpression;
                 streamReaderParam = StreamReaderParameterExpression;
 
-                Deserializers.Deserializer[] cachedDeserializers = new Deserializers.Deserializer[subscriberMethodParameterCount];
-
                 string[] parameterNames = new string[subscriberMethodParameterCount];
 
                 for (int i = 0; i < subscriberMethodParameterCount; i++)
@@ -563,22 +561,25 @@ namespace AblazeForge.DirectiveNetcode.Messaging
                     if (param.Name == messageMetadataParameterName)
                     {
                         methodCallArgs.Add(messageMetadataParam);
-                        cachedDeserializers[i] = null;
                     }
                     else if (param.Name == connectionUIDParameterName)
                     {
                         methodCallArgs.Add(connectionUIDParam);
-                        cachedDeserializers[i] = null;
                     }
                     else
                     {
-                        var deserializer = Deserializers.GetDeserializer(param.ParameterType) ?? throw new ArgumentException($"No deserializer found for parameter type {param.ParameterType}");
+                        Type paramType = param.ParameterType;
 
-                        cachedDeserializers[i] = deserializer;
+                        MethodInfo deserializerMethod = typeof(Deserializers)
+                        .GetMethod(nameof(Deserializers.GetDeserializer))
+                        .MakeGenericMethod(paramType);
 
-                        var deserializerConstant = Expression.Constant(deserializer, typeof(Deserializers.Deserializer));
+                        var typedDeserializer = deserializerMethod.Invoke(null, null) ?? throw new ArgumentException($"No deserializer found for parameter type {paramType}");
 
-                        var deserializerInvokeMethod = typeof(Deserializers.Deserializer).GetMethod("Invoke");
+                        ConstantExpression deserializerConstant = Expression.Constant(typedDeserializer);
+
+                        Type typedDelegateType = typeof(Deserializers.TypedDeserializerDelegate<>).MakeGenericType(paramType);
+                        MethodInfo typedDeserializerInvokeMethod = typedDelegateType.GetMethod("Invoke");
 
                         Type dataReadResultType = typeof(DataReadResult<>).MakeGenericType(param.ParameterType);
 
@@ -588,15 +589,13 @@ namespace AblazeForge.DirectiveNetcode.Messaging
 
                         var deserializeCall = Expression.Call(
                             deserializerConstant,
-                            deserializerInvokeMethod,
+                            typedDeserializerInvokeMethod,
                             streamReaderParam
                         );
 
-                        blockExpressions.Add(Expression.Assign(deserializerResultVariable, Expression.Convert(deserializeCall, dataReadResultType)));
+                        blockExpressions.Add(Expression.Assign(deserializerResultVariable, deserializeCall));
 
-                        var successProperty = Expression.Property(deserializerResultVariable, "Success");
-
-                        var valueProperty = Expression.Property(deserializerResultVariable, "Value");
+                        var successProperty = Expression.Property(deserializerResultVariable, nameof(DataReadResult<object>.IsSuccess));
 
                         var checkFailureAndReturn = Expression.IfThen(
                             Expression.IsFalse(successProperty),
@@ -605,7 +604,9 @@ namespace AblazeForge.DirectiveNetcode.Messaging
 
                         blockExpressions.Add(checkFailureAndReturn);
 
-                        methodCallArgs.Add(Expression.Convert(valueProperty, param.ParameterType));
+                        var valueProperty = Expression.Property(deserializerResultVariable, nameof(DataReadResult<object>.Value));
+
+                        methodCallArgs.Add(valueProperty);
                     }
                 }
             }
