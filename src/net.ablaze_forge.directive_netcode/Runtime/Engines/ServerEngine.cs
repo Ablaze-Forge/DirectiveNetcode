@@ -421,7 +421,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
                 NetworkEndpoint endpoint = config.UseIPv4 ? NetworkEndpoint.AnyIpv4 : NetworkEndpoint.AnyIpv6;
 
-                endpoint.WithPort(config.Port);
+                endpoint = endpoint.WithPort(config.Port);
 
                 if (driver.Bind(endpoint) != 0)
                 {

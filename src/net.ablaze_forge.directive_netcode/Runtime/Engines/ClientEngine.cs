@@ -99,7 +99,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 {
                     case NetworkEvent.Type.Connect:
                         m_ConnectionInformationProvider.RegisterConnection(0);
-                        OnConnect.Invoke(this, null);
+                        OnConnect.Invoke(this, EventArgs.Empty);
                         break;
                     case NetworkEvent.Type.Data:
                         MessageResult result = m_MessageReceiver.HandleDataMessage(ref stream);
@@ -194,9 +194,8 @@ namespace AblazeForge.DirectiveNetcode.Engines
             if (string.IsNullOrEmpty(ipAddress) || !NetworkEndpoint.TryParse(ipAddress, driverConfiguration.Port, out NetworkEndpoint endpoint))
             {
                 endpoint = driverConfiguration.UseIPv4 ? NetworkEndpoint.LoopbackIpv4 : NetworkEndpoint.LoopbackIpv6;
+                endpoint = endpoint.WithPort(driverConfiguration.Port);
             }
-
-            endpoint.WithPort(driverConfiguration.Port);
 
             m_Connection = m_Driver.Connect(endpoint);
 
