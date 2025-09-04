@@ -220,15 +220,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             m_Driver.BeginSend(m_NetworkPipelines[(int)pipelineIndex], m_Connection, out DataStreamWriter writer);
 
-            if (!writer.CanWriteFixedLength(sizeof(ushort)))
-            {
-                m_Driver.AbortSend(writer);
-                return false;
-            }
-
-            writer.WriteUShort(messageId);
-
-            MessageResult result = m_MessageSender.PrepareMessage(messageMetadata, ref writer);
+            MessageResult result = m_MessageSender.PrepareMessage(messageId, messageMetadata, ref writer);
 
             switch (result)
             {

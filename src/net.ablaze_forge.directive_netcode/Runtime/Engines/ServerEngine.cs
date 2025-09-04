@@ -477,15 +477,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             m_Drivers.BeginSend(m_NetworkPipelines[(int)pipelineIndex], tracker.Connection, out DataStreamWriter writer);
 
-            if (!writer.CanWriteFixedLength(sizeof(ushort)))
-            {
-                m_Drivers.AbortSend(writer);
-                return false;
-            }
-
-            writer.WriteUShort(messageId);
-
-            MessageResult result = m_MessageSender.PrepareMessage(connectionUID, messageMetadata, ref writer);
+            MessageResult result = m_MessageSender.PrepareMessage(connectionUID, messageId, messageMetadata, ref writer);
 
             switch (result)
             {
@@ -602,16 +594,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                     continue;
                 }
 
-                m_Drivers.BeginSend(tracker.Connection, out writer);
-                if (!writer.CanWriteFixedLength(sizeof(ushort)))
-                {
-                    m_Drivers.AbortSend(writer);
-                    continue;
-                }
-
-                writer.WriteUShort(handler.MessageId);
-
-                MessageResult result = m_MessageSender.PrepareMessage(connectionUID, handler.MessageMetadata, ref writer);
+                MessageResult result = m_MessageSender.PrepareMessage(connectionUID, handler.MessageId, handler.MessageMetadata, ref writer);
 
                 switch (result)
                 {
@@ -664,16 +647,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                     continue;
                 }
 
-                m_Drivers.BeginSend(networkHandler.Connection, out writer);
-                if (!writer.CanWriteFixedLength(sizeof(ushort)))
-                {
-                    m_Drivers.AbortSend(writer);
-                    continue;
-                }
-
-                writer.WriteUShort(handler.MessageId);
-
-                MessageResult result = m_MessageSender.PrepareMessage(networkHandler.ConnectionUID, handler.MessageMetadata, ref writer);
+                MessageResult result = m_MessageSender.PrepareMessage(networkHandler.ConnectionUID, handler.MessageId, handler.MessageMetadata, ref writer);
 
                 switch (result)
                 {

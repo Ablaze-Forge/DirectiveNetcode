@@ -29,17 +29,20 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// <summary>
         /// Prepares a message to be sent to the server by processing it through the message pipeline.
         /// </summary>
+        /// <param name="messageId">The id of the message to send.</param>
         /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
         /// <param name="writer">The data stream writer for the message.</param>
         /// <returns>A <see cref="MessageResult"/> indicating how the message preparation should be handled.</returns>
-        public override MessageResult PrepareMessage(MessageMetadataHandler messageMetadata, ref DataStreamWriter writer)
+        public override MessageResult PrepareMessage(ushort messageId, MessageMetadataHandler messageMetadata, ref DataStreamWriter writer)
         {
-            if (!writer.CanWriteFixedLength(sizeof(byte)))
+            if (!writer.CanWriteFixedLength(sizeof(byte) + sizeof(ushort)))
             {
                 return MessageResult.KeepAlive;
             }
 
             writer.WriteByte(messageMetadata.Data);
+
+            writer.WriteUShort(messageId);
 
             PipelineResult pipelineResult = MessagePipeline.PrepareMessageToSend(0, messageMetadata, ref writer);
 

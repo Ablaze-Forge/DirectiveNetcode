@@ -29,6 +29,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
         /// <param name="writer">The data stream writer for the message.</param>
         /// <returns>A <see cref="MessageResult"/> indicating how the message preparation should be handled.</returns>
-        public abstract MessageResult PrepareMessage(MessageMetadataHandler messageMetadata, ref DataStreamWriter writer);
+        public abstract MessageResult PrepareMessage(ushort messageId, MessageMetadataHandler messageMetadata, ref DataStreamWriter writer);
     }
 }

@@ -30,17 +30,20 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// Prepares a message to be sent to a client connection by processing it through the message pipeline.
         /// </summary>
         /// <param name="connectionUID">The unique identifier of the client connection to send the message to.</param>
+        /// <param name="messageId">The id of the message to send.</param>
         /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
         /// <param name="writer">The data stream writer for the message.</param>
         /// <returns>A <see cref="MessageResult"/> indicating how the message preparation should be handled.</returns>
-        public override MessageResult PrepareMessage(ulong connectionUID, MessageMetadataHandler messageMetadata, ref DataStreamWriter writer)
+        public override MessageResult PrepareMessage(ulong connectionUID, ushort messageId, MessageMetadataHandler messageMetadata, ref DataStreamWriter writer)
         {
-            if (!writer.CanWriteFixedLength(sizeof(byte)))
+            if (!writer.CanWriteFixedLength(sizeof(byte) + sizeof(ushort)))
             {
                 return MessageResult.KeepAlive;
             }
 
             writer.WriteByte(messageMetadata.Data);
+
+            writer.WriteUShort(messageId);
 
             PipelineResult pipelineResult = MessagePipeline.PrepareMessageToSend(connectionUID, messageMetadata, ref writer);
 
