@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AblazeForge.DirectiveNetcode.ConnectionData;
 using AblazeForge.DirectiveNetcode.Logging;
 using AblazeForge.DirectiveNetcode.Messaging;
@@ -58,7 +59,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         private int m_MaxConnections;
 
         private ulong m_LastDataStreamHandlerID = 0;
-        private readonly List<ServerDataStreamHandler> m_DataStreamHandlers = new();
+        private readonly List<ServerDataSendHandler> m_DataStreamHandlers = new();
 
         private readonly IConnectionInformationProvider m_ConnectionInformationProvider;
 
@@ -102,11 +103,11 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </summary>
         private void CleanUnhandledWriters()
         {
-            foreach (ServerDataStreamHandler handler in m_DataStreamHandlers)
+            foreach (ServerDataSendHandler handler in m_DataStreamHandlers)
             {
                 if (!handler.Handled)
                 {
-                    m_Drivers.AbortSend(handler.UnderlyingWriter);
+                    handler.Abort(ref m_Drivers);
                 }
             }
 
@@ -501,11 +502,40 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
         /// <param name="messageMetadata">The metadata handler containing information about the message to be broadcast.</param>
         /// <param name="handler">The broadcast data stream handler for managing the broadcast operation.</param>
-        private void BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, out ServerBroadcastDataStreamHandler handler)
+        private void BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, out ServerMultiTargetDataStreamHandler handler)
         {
-            DataStreamWriter writer = new();
+            DataStreamWriter[] writers = new DataStreamWriter[m_Connections.Length];
 
-            handler = new(messageId, (int)pipelineIndex, messageMetadata, ref writer);
+            for (int i = m_Connections.Length - 1; i >= 0; i--)
+            {
+                NetworkConnectionHandler connectionHandler = m_Connections[i];
+
+                m_Drivers.BeginSend(m_NetworkPipelines[(int)pipelineIndex], connectionHandler.Connection, out DataStreamWriter writer);
+
+                MessageResult result = m_MessageSender.PrepareMessage(connectionHandler.ConnectionUID, messageId, messageMetadata, ref writer);
+
+                if (result == MessageResult.Success)
+                {
+                    writers[i] = writer;
+                }
+                else
+                {
+                    m_Drivers.AbortSend(writer);
+
+                    writers[i] = default;
+
+                    if (result == MessageResult.Disconnect)
+                    {
+                        Disconnect(connectionHandler.ConnectionUID);
+                    }
+
+                    continue;
+                }
+            }
+
+            handler = new(writers);
+
+            m_DataStreamHandlers.Add(handler);
         }
 
         /// <summary>
@@ -517,11 +547,41 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="messageMetadata">The metadata handler containing information about the message to be sent.</param>
         /// <param name="connectionUIDs">An enumerable collection of unique identifiers for the client connections to send the message to.</param>
         /// <param name="handler">The multi-send data stream handler for managing the multi-send operation.</param>
-        private void BeginMultiSend(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, IEnumerable<ulong> connectionUIDs, out ServerMultiDataStreamHandler handler)
+        private void BeginMultiSend(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, IEnumerable<ulong> connectionUIDs, out ServerMultiTargetDataStreamHandler handler)
         {
-            DataStreamWriter writer = new();
+            List<DataStreamWriter> writers = new();
 
-            handler = new(messageId, (int)pipelineIndex, messageMetadata, connectionUIDs, ref writer);
+            foreach (ulong connectionUID in connectionUIDs)
+            {
+                if (!m_UIDToTracker.TryGetValue(connectionUID, out var tracker) || tracker.IsDisconnected())
+                {
+                    continue;
+                }
+
+                m_Drivers.BeginSend(m_NetworkPipelines[(int)pipelineIndex], tracker.Connection, out DataStreamWriter writer);
+
+                MessageResult result = m_MessageSender.PrepareMessage(connectionUID, messageId, messageMetadata, ref writer);
+
+                if (result == MessageResult.Success)
+                {
+                    writers.Add(writer);
+                }
+                else
+                {
+                    m_Drivers.AbortSend(writer);
+
+                    if (result == MessageResult.Disconnect)
+                    {
+                        Disconnect(connectionUID);
+                    }
+
+                    continue;
+                }
+            }
+
+            handler = new(writers.ToArray());
+
+            m_DataStreamHandlers.Add(handler);
         }
 
         /// <summary>
@@ -543,7 +603,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </summary>
         /// <param name="messageId">The identifier of the message type to be broadcast.</param>
         /// <param name="handler">The broadcast data stream handler for managing the broadcast operation.</param>
-        public void BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, out ServerBroadcastDataStreamHandler handler)
+        public void BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, out ServerMultiTargetDataStreamHandler handler)
         {
             BeginBroadcast(messageId, pipelineIndex, MessageMetadataHandler.Default, out handler);
         }
@@ -555,7 +615,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="messageId">The identifier of the message type to be sent.</param>
         /// <param name="connectionUIDs">An enumerable collection of unique identifiers for the client connections to send the message to.</param>
         /// <param name="handler">The multi-send data stream handler for managing the multi-send operation.</param>
-        public void BeginMultiSend(ushort messageId, NetworkPipelineIndex pipelineIndex, IEnumerable<ulong> connectionUIDs, out ServerMultiDataStreamHandler handler)
+        public void BeginMultiSend(ushort messageId, NetworkPipelineIndex pipelineIndex, IEnumerable<ulong> connectionUIDs, out ServerMultiTargetDataStreamHandler handler)
         {
             BeginMultiSend(messageId, pipelineIndex, MessageMetadataHandler.Default, connectionUIDs, out handler);
         }
@@ -577,106 +637,45 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// Completes a network message multi-send operation by finalizing the data stream and sending it to multiple specific clients.
         /// This method iterates through the specified connection UIDs and sends the prepared message to each one.
         /// </summary>
-        /// <param name="handler">The multi-send data stream handler for the send operation to complete.</param>
+        /// <param name="sendHandler">The multi-send data stream handler for the send operation to complete.</param>
         /// <returns>The number of messages successfully sent to clients.</returns>
-        public int EndSend(ServerMultiDataStreamHandler handler)
+        public int EndSend(ServerMultiTargetDataStreamHandler sendHandler)
         {
+            sendHandler.Handled = true;
+
             int messagesSent = 0;
 
-            DataStreamWriter writer = handler.UnderlyingWriter;
-
-            for (int i = 0; i < handler.ConnectionUIDs.Length; i++)
+            for (int i = 0; i < sendHandler.Writers.Length; i++)
             {
-                ulong connectionUID = handler.ConnectionUIDs[i];
+                try
+                {
+                    DataStreamWriter writer = sendHandler.Writers[i];
 
-                if (!m_UIDToTracker.TryGetValue(connectionUID, out UIDExpirationTracker tracker) || tracker.IsDisconnected())
+                    if (!writer.IsCreated)
+                    {
+                        continue;
+                    }
+
+                    writer.WriteInt(writer.Length);
+
+
+                    if (m_Drivers.EndSend(writer) == 0)
+                    {
+                        messagesSent++;
+                    }
+                }
+                catch // TODO: Add logging and ensure the writer is disposed
                 {
                     continue;
-                }
-
-                MessageResult result = m_MessageSender.PrepareMessage(connectionUID, handler.MessageId, handler.MessageMetadata, ref writer);
-
-                switch (result)
-                {
-                    case MessageResult.Disconnect:
-                        m_Drivers.AbortSend(writer);
-                        Disconnect(connectionUID);
-                        continue;
-                    case MessageResult.Success:
-                        break;
-                    default:
-                        m_Drivers.AbortSend(writer);
-                        continue;
-                }
-
-                if (!writer.CanWrite(handler.UnderlyingWriter.Length))
-                {
-                    m_Drivers.AbortSend(writer);
-                    continue;
-                }
-
-                writer.WriteBytes(handler.UnderlyingWriter.AsNativeArray());
-
-                if (m_Drivers.EndSend(writer) == 0)
-                {
-                    messagesSent++;
                 }
             }
 
             return messagesSent;
         }
 
-        /// <summary>
-        /// Completes a network message broadcast operation by finalizing the data stream and sending it to all connected clients.
-        /// This method iterates through all active connections and sends the prepared message to each one.
-        /// </summary>
-        /// <param name="handler">The broadcast data stream handler for the send operation to complete.</param>
-        /// <returns>The number of messages successfully sent to clients.</returns>
-        public int EndSend(ServerBroadcastDataStreamHandler handler)
+        public void AbortSend(ServerMultiTargetDataStreamHandler sendHandler)
         {
-            int messagesSent = 0;
-
-            DataStreamWriter writer = handler.UnderlyingWriter;
-
-            for (int i = 0; i < m_Connections.Length; i++)
-            {
-                NetworkConnectionHandler networkHandler = m_Connections[i];
-
-                if (!networkHandler.IsConnectionCreated)
-                {
-                    continue;
-                }
-
-                MessageResult result = m_MessageSender.PrepareMessage(networkHandler.ConnectionUID, handler.MessageId, handler.MessageMetadata, ref writer);
-
-                switch (result)
-                {
-                    case MessageResult.Disconnect:
-                        m_Drivers.AbortSend(writer);
-                        Disconnect(networkHandler.ConnectionUID);
-                        continue;
-                    case MessageResult.Success:
-                        break;
-                    default:
-                        m_Drivers.AbortSend(writer);
-                        continue;
-                }
-
-                if (!writer.CanWrite(handler.UnderlyingWriter.Length))
-                {
-                    m_Drivers.AbortSend(writer);
-                    continue;
-                }
-
-                writer.WriteBytes(handler.UnderlyingWriter.AsNativeArray());
-
-                if (m_Drivers.EndSend(writer) == 0)
-                {
-                    messagesSent++;
-                }
-            }
-
-            return messagesSent;
+            sendHandler.Abort(ref m_Drivers);
         }
 
         /// <summary>

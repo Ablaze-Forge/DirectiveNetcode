@@ -39,7 +39,7 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// </summary>
         public static TypedDeserializerDelegate<T> GetDeserializer<T>()
         {
-            if(DeserializerCache<T>.Deserializer != null)
+            if (DeserializerCache<T>.Deserializer != null)
             {
                 return DeserializerCache<T>.Deserializer;
             }
@@ -47,7 +47,12 @@ namespace AblazeForge.DirectiveNetcode.Messaging
             throw new InvalidOperationException($"No deserializer registered for type: {typeof(T).FullName}");
         }
 
-        private static class DeserializerCache<T>
+        public static DataReadResult<T> ReadWithDeserializer<T>(this DataStreamReader reader)
+        {
+            return GetDeserializer<T>().Invoke(ref reader);
+        }
+
+        public static class DeserializerCache<T>
         {
             internal static TypedDeserializerDelegate<T> Deserializer = null;
         }

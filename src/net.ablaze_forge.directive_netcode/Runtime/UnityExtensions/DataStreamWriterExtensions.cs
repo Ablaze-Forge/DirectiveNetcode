@@ -51,6 +51,7 @@ namespace AblazeForge.DirectiveNetcode.Unity.Extensions
                 {
                     return false;
                 }
+
                 return writer.WriteInt(0);
             }
 
