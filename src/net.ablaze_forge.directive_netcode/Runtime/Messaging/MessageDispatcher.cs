@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using System.Reflection;
-using AblazeForge.DirectiveNetcode.Unity.Extensions;
 using AblazeForge.DirectiveNetcode.ConnectionData;
 using Unity.Collections;
 using UnityEngine;
@@ -102,27 +100,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
             else
             {
                 m_ControlHandlers[controlKey] += messageDelegate;
-            }
-        }
-
-        /// <summary>
-        /// Registers a reflection-based handler for messages with the specified key.
-        /// </summary>
-        /// <param name="messageKey">The key identifying the type of message to handle.</param>
-        /// <param name="target">The target object instance for the method, or null for static methods.</param>
-        /// <param name="method">The method information for the handler method.</param>
-        /// <param name="requiredConnectionFlags">The connection flags required for the handler to be invoked. Defaults to 0.</param>
-        public void RegisterReflectionHandler(ushort messageKey, object target, MethodInfo method, ushort requiredConnectionFlags = 0)
-        {
-            try
-            {
-                MessageDelegate handler = MessageDelegateReflectionFactory.CreateDelegate<MessageDelegate>(target, method);
-
-                RegisterMessageDelegate(messageKey, handler, requiredConnectionFlags);
-            }
-            catch (ArgumentException ex)
-            {
-                m_Logger.LogError(GetType().Name, $"Failed to register reflection handler for message key {messageKey}: {ex.Message}");
             }
         }
 
@@ -354,13 +331,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
                 registeredCount += RegisterDelegatesForTypeViaReflection(type,
                     (objectType, target, method, throwOnBindFailure) =>
                     {
-                        return MessageDelegateReflectionFactory.CreateDelegate<MessageDelegate>(target, method);
-                    },
-                    WrapAction<MessageDelegate, ReflectiveMessageAttribute>(RegisterMessageDelegate));
-
-                registeredCount += RegisterDelegatesForTypeViaReflection(type,
-                    (objectType, target, method, throwOnBindFailure) =>
-                    {
                         return (EventDelegate)Delegate.CreateDelegate(typeof(EventDelegate), target, method, throwOnBindFailure);
                     },
                     WrapAction<EventDelegate, EventMessageAttribute>(RegisterEventDelegate));
@@ -369,16 +339,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
                     (objectType, target, method, throwOnBindFailure) =>
                     {
                         return (ControlMessageDelegate)Delegate.CreateDelegate(typeof(ControlMessageDelegate), target, method, throwOnBindFailure);
-                    },
-                    (controlKey, messageDelegate, requiredConnectionFlags, attribute) =>
-                    {
-                        RegisterControlDelegate((byte)controlKey, attribute.StreamLength, messageDelegate, requiredConnectionFlags);
-                    });
-
-                registeredCount += RegisterDelegatesForTypeViaReflection<ReflectiveControlMessageAttribute, ControlMessageDelegate>(type,
-                    (objectType, target, method, throwOnBindFailure) =>
-                    {
-                        return MessageDelegateReflectionFactory.CreateDelegate<ControlMessageDelegate>(target, method);
                     },
                     (controlKey, messageDelegate, requiredConnectionFlags, attribute) =>
                     {
@@ -432,184 +392,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
             }
 
             return registeredCount;
-        }
-
-        /// <summary>
-        /// A factory class that uses reflection to create <see cref="MessageDelegate"/> delegates.
-        /// </summary>
-        /// <remarks>
-        /// This class dynamically compiles an expression tree to create a high-performance delegate that can handle incoming messages based on a provided method's signature.
-        /// It supports methods with parameters that can be deserialized from a data stream, as well as special parameters for connection UID and message metadata.
-        /// </remarks>
-        private static class MessageDelegateReflectionFactory
-        {
-            /// <summary>
-            /// Creates a <see cref="MessageDelegate"/> for the method provided.
-            /// </summary>
-            /// <param name="target">The target object instance for the method, or null for static methods.</param>
-            /// <param name="method">The method information for the handler method.</param>
-            /// <exception cref="ArgumentException">Thrown when target is null for non-static methods or when no deserializer is found for a parameter type.</exception>
-            /// <returns>The compiled delegate of type T</returns>
-            public static T CreateDelegate<T>(object target, MethodInfo method) where T : Delegate
-            {
-                if (!method.IsStatic && target == null)
-                {
-                    throw new ArgumentException("Target cannot be null for non-static methods.", nameof(target));
-                }
-
-                if (method.IsStatic && target != null)
-                {
-                    target = null;
-                }
-
-                if (method.ReturnType != typeof(T).GetMethod("Invoke").ReturnType)
-                {
-                    throw new ArgumentException($"Reflection handlers for delegate {typeof(T).Name} must have a {typeof(T).GetMethod("Invoke").ReturnType.Name} return type. Method {method.Name} returns {method.ReturnType.Name}.");
-                }
-
-                ParameterInfo[] subscriberMethodParameters = method.GetParameters();
-
-                var returnLabel = Expression.Label("returnFromHandler");
-
-                var methodCallArgs = new List<Expression>();
-                var blockExpressions = new List<Expression>();
-                var localVariables = new List<ParameterExpression>();
-
-                MessageDelegateFactoryHelpers.CreateParametersExpression(subscriberMethodParameters, methodCallArgs, localVariables, blockExpressions, returnLabel, out var messageMetadataParam, out var connectionUIDParam, out var streamReaderParam);
-
-                Expression instanceExpression = method.IsStatic ? null : Expression.Convert(Expression.Constant(target), method.DeclaringType);
-
-                var methodCall = Expression.Call(instanceExpression, method, methodCallArgs);
-
-                blockExpressions.Add(methodCall);
-
-                blockExpressions.Add(Expression.Label(returnLabel));
-
-                var body = Expression.Block(localVariables, blockExpressions);
-
-                return Expression.Lambda<T>(
-                    body,
-                    connectionUIDParam,
-                    messageMetadataParam,
-                    streamReaderParam
-                ).Compile();
-            }
-        }
-
-        /// <summary>
-        /// Provides helper methods and properties for creating parameter expressions used in delegate factories.
-        /// This class contains utilities for generating expression trees that handle parameter mapping and deserialization in reflection-based message handlers.
-        /// </summary>
-        private static class MessageDelegateFactoryHelpers
-        {
-            /// <summary>
-            /// The name of the connection UID parameter.
-            /// </summary>
-            private const string connectionUIDParameterName = "connectionUID";
-
-            /// <summary>
-            /// The name of the message metadata parameter.
-            /// </summary>
-            private const string messageMetadataParameterName = "messageMetadata";
-
-            /// <summary>
-            /// The name of the data stream reader parameter.
-            /// </summary>
-            private const string streamReaderParameterName = "stream";
-
-            /// <summary>
-            /// Gets the parameter expression for the connection UID parameter.
-            /// </summary>
-            public static ParameterExpression ConnectionUIDParameterExpression => Expression.Parameter(typeof(ulong), connectionUIDParameterName);
-
-            /// <summary>
-            /// Gets the parameter expression for the message metadata parameter.
-            /// </summary>
-            public static ParameterExpression MessageMetadataParameterExpression => Expression.Parameter(typeof(MessageMetadataHandler), messageMetadataParameterName);
-
-            /// <summary>
-            /// Gets the parameter expression for the data stream reader parameter.
-            /// </summary>
-            public static ParameterExpression StreamReaderParameterExpression => Expression.Parameter(typeof(DataStreamReader), streamReaderParameterName);
-
-            /// <summary>
-            /// Creates parameter expressions for the subscriber method parameters, handling special parameters and deserialization.
-            /// </summary>
-            /// <param name="subscriberMethodParameters">The parameter information for the subscriber method.</param>
-            /// <param name="methodCallArgs">The list to add method call arguments to.</param>
-            /// <param name="localVariables">The list to add local variables to.</param>
-            /// <param name="blockExpressions">The list to add block expressions to.</param>
-            /// <param name="returnLabel">The label target for returning from the handler.</param>
-            /// <param name="messageMetadataParam">The output parameter expression for message metadata.</param>
-            /// <param name="connectionUIDParam">The output parameter expression for connection UID.</param>
-            /// <param name="streamReaderParam">The output parameter expression for data stream reader.</param>
-            public static void CreateParametersExpression(ParameterInfo[] subscriberMethodParameters, List<Expression> methodCallArgs, List<ParameterExpression> localVariables, List<Expression> blockExpressions, LabelTarget returnLabel, out ParameterExpression messageMetadataParam, out ParameterExpression connectionUIDParam, out ParameterExpression streamReaderParam)
-            {
-                int subscriberMethodParameterCount = subscriberMethodParameters.Length;
-
-                messageMetadataParam = MessageMetadataParameterExpression;
-                connectionUIDParam = ConnectionUIDParameterExpression;
-                streamReaderParam = StreamReaderParameterExpression;
-
-                string[] parameterNames = new string[subscriberMethodParameterCount];
-
-                for (int i = 0; i < subscriberMethodParameterCount; i++)
-                {
-                    var param = subscriberMethodParameters[i];
-                    parameterNames[i] = param.Name;
-
-                    if (param.Name == messageMetadataParameterName)
-                    {
-                        methodCallArgs.Add(messageMetadataParam);
-                    }
-                    else if (param.Name == connectionUIDParameterName)
-                    {
-                        methodCallArgs.Add(connectionUIDParam);
-                    }
-                    else
-                    {
-                        Type paramType = param.ParameterType;
-
-                        MethodInfo deserializerMethod = typeof(Deserializers)
-                        .GetMethod(nameof(Deserializers.GetDeserializer))
-                        .MakeGenericMethod(paramType);
-
-                        var typedDeserializer = deserializerMethod.Invoke(null, null) ?? throw new ArgumentException($"No deserializer found for parameter type {paramType}");
-
-                        ConstantExpression deserializerConstant = Expression.Constant(typedDeserializer);
-
-                        Type typedDelegateType = typeof(Deserializers.TypedDeserializerDelegate<>).MakeGenericType(paramType);
-                        MethodInfo typedDeserializerInvokeMethod = typedDelegateType.GetMethod("Invoke");
-
-                        Type dataReadResultType = typeof(DataReadResult<>).MakeGenericType(param.ParameterType);
-
-                        var deserializerResultVariable = Expression.Variable(dataReadResultType, $"deserializedResult_{param.Name}");
-
-                        localVariables.Add(deserializerResultVariable);
-
-                        var deserializeCall = Expression.Call(
-                            deserializerConstant,
-                            typedDeserializerInvokeMethod,
-                            streamReaderParam
-                        );
-
-                        blockExpressions.Add(Expression.Assign(deserializerResultVariable, deserializeCall));
-
-                        var successProperty = Expression.Property(deserializerResultVariable, nameof(DataReadResult<object>.IsSuccess));
-
-                        var checkFailureAndReturn = Expression.IfThen(
-                            Expression.IsFalse(successProperty),
-                            Expression.Return(returnLabel)
-                        );
-
-                        blockExpressions.Add(checkFailureAndReturn);
-
-                        var valueProperty = Expression.Property(deserializerResultVariable, nameof(DataReadResult<object>.Value));
-
-                        methodCallArgs.Add(valueProperty);
-                    }
-                }
-            }
         }
     }
 
@@ -799,15 +581,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
     }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class ReflectiveMessageAttribute : MessageDelegateAttributeBase
-    {
-        public ReflectiveMessageAttribute(ushort messageKey, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0) : base(messageKey, messageSide, requiredConnectionFlags) { }
-
-        public ReflectiveMessageAttribute(Enum messageKey, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0)
-        : base((ushort)(object)messageKey, messageSide, requiredConnectionFlags) { }
-    }
-
-    [AttributeUsage(AttributeTargets.Method)]
     public class ControlMessageAttribute : MessageDelegateAttributeBase
     {
         public ushort StreamLength { get; protected set; }
@@ -824,25 +597,6 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         }
 
         public ControlMessageAttribute(Enum messageKey, ushort streamLength, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0) : this((byte)(object)messageKey, streamLength, messageSide, requiredConnectionFlags) { }
-    }
-
-    [AttributeUsage(AttributeTargets.Method)]
-    public class ReflectiveControlMessageAttribute : MessageDelegateAttributeBase
-    {
-        public ushort StreamLength { get; protected set; }
-
-        public ReflectiveControlMessageAttribute(byte messageKey, ushort streamLength, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0)
-            : base(messageKey, messageSide, requiredConnectionFlags)
-        {
-            if (streamLength >= IConnectionStatus.FlagsSize)
-            {
-                throw new ArgumentOutOfRangeException(nameof(messageKey), $"Control Message key must be a value from 0 to {IConnectionStatus.FlagsSize}");
-            }
-
-            StreamLength = streamLength;
-        }
-
-        public ReflectiveControlMessageAttribute(Enum messageKey, ushort streamLength, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0) : this((byte)(object)messageKey, streamLength, messageSide, requiredConnectionFlags) { }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
