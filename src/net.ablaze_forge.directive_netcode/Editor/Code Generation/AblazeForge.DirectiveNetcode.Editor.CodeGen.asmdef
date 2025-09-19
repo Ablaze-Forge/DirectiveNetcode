@@ -1,0 +1,20 @@
+{
+    "name": "AblazeForge.DirectiveNetcode.Editor.CodeGen",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Editor.CodeGen",
+    "references": [
+        "AblazeForge.DirectiveNetcode.Messaging.MessageAttributes",
+        "AblazeForge.DirectiveNetcode.Messaging",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

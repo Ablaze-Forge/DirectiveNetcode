@@ -1,0 +1,14 @@
+{
+    "name": "AblazeForge.DirectiveNetcode.Editor",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Editor",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
