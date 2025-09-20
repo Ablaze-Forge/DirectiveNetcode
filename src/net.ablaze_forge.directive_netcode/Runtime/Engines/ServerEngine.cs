@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using AblazeForge.DirectiveNetcode.ConnectionData;
 using AblazeForge.DirectiveNetcode.Logging;
 using AblazeForge.DirectiveNetcode.Messaging;
-using AblazeForge.DirectiveNetcode.Unity.Extensions;
 using Unity.Collections;
 using Unity.Networking.Transport;
 using UnityEngine;
@@ -502,9 +500,12 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
         /// <param name="messageMetadata">The metadata handler containing information about the message to be broadcast.</param>
         /// <param name="handler">The broadcast data stream handler for managing the broadcast operation.</param>
-        private void BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, out ServerMultiTargetDataStreamHandler handler)
+        /// <returns>How many DataStreams were successfuly created and prepared.</returns>
+        private int BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, out ServerMultiTargetDataStreamHandler handler)
         {
             DataStreamWriter[] writers = new DataStreamWriter[m_Connections.Length];
+
+            int dataStreamsCreated = 0;
 
             for (int i = m_Connections.Length - 1; i >= 0; i--)
             {
@@ -517,6 +518,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 if (result == MessageResult.Success)
                 {
                     writers[i] = writer;
+                    dataStreamsCreated++;
                 }
                 else
                 {
@@ -535,7 +537,12 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             handler = new(writers);
 
-            m_DataStreamHandlers.Add(handler);
+            if (dataStreamsCreated > 0)
+            {
+                m_DataStreamHandlers.Add(handler);
+            }
+
+            return dataStreamsCreated;
         }
 
         /// <summary>
@@ -603,9 +610,9 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// </summary>
         /// <param name="messageId">The identifier of the message type to be broadcast.</param>
         /// <param name="handler">The broadcast data stream handler for managing the broadcast operation.</param>
-        public void BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, out ServerMultiTargetDataStreamHandler handler)
+        public int BeginBroadcast(ushort messageId, NetworkPipelineIndex pipelineIndex, out ServerMultiTargetDataStreamHandler handler)
         {
-            BeginBroadcast(messageId, pipelineIndex, MessageMetadataHandler.Default, out handler);
+            return BeginBroadcast(messageId, pipelineIndex, MessageMetadataHandler.Default, out handler);
         }
 
         /// <summary>
@@ -673,7 +680,58 @@ namespace AblazeForge.DirectiveNetcode.Engines
             return messagesSent;
         }
 
-        public void AbortSend(ServerMultiTargetDataStreamHandler sendHandler)
+        /// <summary>
+        /// Sends an event message to a specific client connection.
+        /// </summary>
+        /// <param name="connectionUID">The unique identifier of the client connection to send the event to.</param>
+        /// <param name="eventId">The identifier of the event to be sent.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
+        /// <returns><c>true</c> if the event was successfully sent; otherwise, <c>false</c>.</returns>
+        public bool SendEvent(ulong connectionUID, ushort eventId, NetworkPipelineIndex pipelineIndex = NetworkPipelineIndex.Reliable)
+        {
+            if (!BeginSend(connectionUID, eventId, pipelineIndex, MessageMetadataHandler.EventMessage, out var handler))
+                return false;
+
+            return EndSend(handler);
+        }
+
+        /// <summary>
+        /// Sends an event message to all connected clients.
+        /// </summary>
+        /// <param name="eventId">The identifier of the event to be sent.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
+        /// <returns>The number of messages successfully sent to clients.</returns>
+        public int BroadcastEvent(ushort eventId, NetworkPipelineIndex pipelineIndex = NetworkPipelineIndex.Reliable)
+        {
+            int dataStreamsCreated = BeginBroadcast(eventId, pipelineIndex, MessageMetadataHandler.EventMessage, out var handler);
+
+            if (dataStreamsCreated == 0)
+            {
+                AbortSend(handler);
+                return 0;
+            }
+
+            return EndSend(handler);
+        }
+
+        /// <summary>
+        /// Begins a control message send operation to the specified client connection, preparing the data stream writer and registering a handler for the operation.
+        /// </summary>
+        /// <param name="connectionUID">The unique identifier of the client connection to send the message to.</param>
+        /// <param name="controlKey">The identifier of the key to be sent.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
+        /// <param name="handler">The data stream handler for managing the send operation.</param>
+        /// <returns><c>true</c> if the send operation was successfully initiated; otherwise, <c>false</c>.</returns>
+        public bool BeginSendControlMessage(ulong connectionUID, ushort controlKey, out ServerDataStreamHandler handler, NetworkPipelineIndex pipelineIndex = NetworkPipelineIndex.Reliable)
+        {
+            return BeginSend(connectionUID, controlKey, pipelineIndex, MessageMetadataHandler.ControlMessage, out handler);
+        }
+
+        /// <summary>
+        /// Disposes of any dangling reference for the streams and cancels the sending of the message
+        /// </summary>
+        /// <param name="sendHandler">The data stream handler derivating from <see cref="ServerDataSendHandler"/></param>
+        public void AbortSend(ServerDataSendHandler sendHandler)
         {
             sendHandler.Abort(ref m_Drivers);
         }

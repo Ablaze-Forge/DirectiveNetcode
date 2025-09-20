@@ -28,6 +28,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="writer">The data stream writer to be managed by this handler.</param>
         public ServerDataStreamHandler(ulong id, ulong connectionUID, ref DataStreamWriter writer)
         {
+            HandlerID = id;
             ConnectionUID = connectionUID;
             UnderlyingWriter = writer;
         }

@@ -211,8 +211,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
         /// <param name="handler">The data stream handler for managing the send operation.</param>
         /// <returns><c>true</c> if the send operation was successfully initiated and a handler was created; otherwise, <c>false</c>.</returns>
         /// <remarks>
-        /// This method handles the initial steps of sending a message to the server. If the message preparation fails for any reason,
-        /// the send operation will be aborted and the method will return <c>false</c>.
+        /// This method handles the initial steps of sending a message to the server. If the message preparation fails for any reason, the send operation will be aborted and the method will return <c>false</c>.
         /// </remarks>
         private bool BeginSend(ushort messageId, NetworkPipelineIndex pipelineIndex, MessageMetadataHandler messageMetadata, out ClientDataStreamHandler handler)
         {
@@ -264,6 +263,35 @@ namespace AblazeForge.DirectiveNetcode.Engines
 
             handler.Handled = true;
             return m_Driver.EndSend(handler.UnderlyingWriter) == 0;
+        }
+
+        /// <summary>
+        /// Sends an event message to the server.
+        /// </summary>
+        /// <param name="eventId">The identifier of the event to be sent.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
+        /// <returns><c>true</c> if the event was successfully sent; otherwise, <c>false</c>.</returns>
+        public bool SendEvent(ushort eventId, NetworkPipelineIndex pipelineIndex = NetworkPipelineIndex.Reliable)
+        {
+            if (!BeginSend(eventId, pipelineIndex, MessageMetadataHandler.EventMessage, out ClientDataStreamHandler handler))
+                return false;
+
+            return EndSend(handler);
+        }
+
+        /// <summary>
+        /// Begins a control message send operation to the connected server, preparing the data stream writer and registering a handler for the operation.
+        /// </summary>
+        /// <param name="controlKey">The identifier of the control message to be sent.</param>
+        /// <param name="pipelineIndex">The index of the <see cref="NetworkPipeline"> to use</param>
+        /// <param name="handler">The data stream handler for managing the send operation.</param>
+        /// <returns><c>true</c> if the send operation was successfully initiated and a handler was created; otherwise, <c>false</c>.</returns>
+        /// <remarks>
+        /// This method handles the initial steps of sending a control message to the server. If the message preparation fails for any reason, the send operation will be aborted and the method will return <c>false</c>.
+        /// </remarks>
+        public bool BeginSendControlMessage(ushort controlKey, out ClientDataStreamHandler handler, NetworkPipelineIndex pipelineIndex = NetworkPipelineIndex.Reliable)
+        {
+            return BeginSend(controlKey, pipelineIndex, MessageMetadataHandler.ControlMessage, out handler);
         }
 
         /// <summary>

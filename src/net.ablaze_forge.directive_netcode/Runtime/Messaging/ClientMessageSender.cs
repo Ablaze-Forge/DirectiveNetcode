@@ -44,16 +44,22 @@ namespace AblazeForge.DirectiveNetcode.Messaging
 
             writer.WriteUShort(messageId);
 
-            PipelineResult pipelineResult = MessagePipeline.PrepareMessageToSend(0, messageMetadata, ref writer);
-
-            if (pipelineResult == PipelineResult.DisconnectClient)
+            switch (messageMetadata.Type)
             {
-                return MessageResult.Disconnect;
-            }
+                // For now only Default messages run through the pipeline
+                case MessageType.Default:
+                    PipelineResult pipelineResult = MessagePipeline.PrepareMessageToSend(0, messageMetadata, ref writer);
 
-            if (pipelineResult == PipelineResult.DiscardMessage)
-            {
-                return MessageResult.KeepAlive;
+                    if (pipelineResult == PipelineResult.DisconnectClient)
+                        return MessageResult.Disconnect;
+
+                    if (pipelineResult == PipelineResult.DiscardMessage)
+                        return MessageResult.KeepAlive;
+
+                    break;
+
+                default:
+                    break;
             }
 
             return MessageResult.Success;
