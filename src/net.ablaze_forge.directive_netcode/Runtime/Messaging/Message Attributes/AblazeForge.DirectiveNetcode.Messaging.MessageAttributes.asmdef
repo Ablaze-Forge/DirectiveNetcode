@@ -1,0 +1,14 @@
+{
+    "name": "AblazeForge.DirectiveNetcode.Messaging.MessageAttributes",
+    "rootNamespace": "AblazeForge.DirectiveNetcode.Messaging.MessageAttributes",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

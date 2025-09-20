@@ -2,6 +2,7 @@ using AblazeForge.DirectiveNetcode.ConnectionData;
 using AblazeForge.DirectiveNetcode.Engines;
 using AblazeForge.DirectiveNetcode.Logging;
 using AblazeForge.DirectiveNetcode.Messaging;
+using AblazeForge.DirectiveNetcode.Messaging.MessageAttributes;
 using AblazeForge.DirectiveNetcode.Messaging.Pipelines;
 using UnityEngine;
 

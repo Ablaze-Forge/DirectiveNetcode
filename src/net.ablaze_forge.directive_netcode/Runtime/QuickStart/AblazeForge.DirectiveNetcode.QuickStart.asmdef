@@ -5,7 +5,8 @@
         "AblazeForge.DirectiveNetcode.Engines",
         "AblazeForge.DirectiveNetcode.Messaging",
         "AblazeForge.DirectiveNetcode.Logging",
-        "AblazeForge.DirectiveNetcode.ConnectionData"
+        "AblazeForge.DirectiveNetcode.ConnectionData",
+        "AblazeForge.DirectiveNetcode.Messaging.MessageAttributes"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
