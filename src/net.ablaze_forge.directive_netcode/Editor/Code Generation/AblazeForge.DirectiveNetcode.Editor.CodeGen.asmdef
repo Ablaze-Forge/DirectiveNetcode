@@ -2,9 +2,8 @@
     "name": "AblazeForge.DirectiveNetcode.Editor.CodeGen",
     "rootNamespace": "AblazeForge.DirectiveNetcode.Editor.CodeGen",
     "references": [
-        "AblazeForge.DirectiveNetcode.Messaging.MessageAttributes",
-        "AblazeForge.DirectiveNetcode.Messaging",
-        "Unity.Collections"
+        "Unity.Collections",
+        "AblazeForge.DirectiveNetcode"
     ],
     "includePlatforms": [
         "Editor"

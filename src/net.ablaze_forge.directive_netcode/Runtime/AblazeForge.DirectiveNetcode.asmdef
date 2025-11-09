@@ -1,7 +1,10 @@
 {
     "name": "AblazeForge.DirectiveNetcode",
     "rootNamespace": "AblazeForge.DirectiveNetcode",
-    "references": [],
+    "references": [
+        "Unity.Collections",
+        "Unity.Networking.Transport"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
