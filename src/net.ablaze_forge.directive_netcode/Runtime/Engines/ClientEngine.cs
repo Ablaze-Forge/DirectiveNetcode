@@ -99,7 +99,7 @@ namespace AblazeForge.DirectiveNetcode.Engines
                 {
                     case NetworkEvent.Type.Connect:
                         m_ConnectionInformationProvider.RegisterConnection(0);
-                        OnConnect.Invoke(this, EventArgs.Empty);
+                        OnConnect?.Invoke(this, EventArgs.Empty);
                         break;
                     case NetworkEvent.Type.Data:
                         MessageResult result = m_MessageReceiver.HandleDataMessage(ref stream);
