@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using UnityEngine;
 
 namespace AblazeForge.DirectiveNetcode.Logging
 {
+    [Obsolete("ErrorCodeLoggerBase is deprecated and will be removed in future versions. Please use a implementation of IDirectiveNetcodeLogger instead.")]
     /// <summary>
     /// Abstract base class for error code-based logging implementations. Provides a foundation for logging with structured error and warning codes.
     /// </summary>
@@ -92,6 +94,7 @@ namespace AblazeForge.DirectiveNetcode.Logging
         }
     }
 
+    [Obsolete("ErrorCodeLogger is deprecated and will be removed in future versions. Please use a implementation of IDirectiveNetcodeLogger instead.")]
     /// <summary>
     /// A concrete implementation of <see cref="ErrorCodeLoggerBase"/> that forwards log messages to an underlying Unity <see cref="ILogger"/> without additional processing.
     /// </summary>
@@ -170,6 +173,7 @@ namespace AblazeForge.DirectiveNetcode.Logging
         }
     }
 
+    [Obsolete("ErrorCodeTracker is deprecated and will be removed in future versions. Please use a implementation of IDirectiveNetcodeLogger instead.")]
     /// <summary>
     /// An implementation of <see cref="ErrorCodeLoggerBase"/> that tracks the frequency of logged errors and warnings in addition to forwarding them to an underlying Unity <see cref="ILogger"/>.
     /// </summary>
