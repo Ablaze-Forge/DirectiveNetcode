@@ -20,28 +20,36 @@ namespace AblazeForge.DirectiveNetcode.Messaging
     /// <summary>
     /// Represents a pipeline step in the client-to-server message receive pipeline.
     /// </summary>
-    public interface IClientToServerReceiveStep : IPipelineStep<MessageReceiveParams> { }
+    public interface IClientToServerReceiveStep<TId, TMessageMetadata> : IPipelineStep<MessageReceiveParams<TId, TMessageMetadata>>
+        where TId : unmanaged
+        where TMessageMetadata : unmanaged, IMessageMetadata, IDataStreamDeserializable<TMessageMetadata>
+    { }
 
     /// <summary>
     /// Represents a pipeline step in the server-to-client message receive pipeline.
     /// </summary>
-    public interface IServerToClientReceiveStep : IPipelineStep<MessageReceiveParams> { }
+    public interface IServerToClientReceiveStep<TId, TMessageMetadata> : IPipelineStep<MessageReceiveParams<TId, TMessageMetadata>>
+        where TId : unmanaged
+        where TMessageMetadata : unmanaged, IMessageMetadata, IDataStreamDeserializable<TMessageMetadata>
+    { }
 
     /// <summary>
     /// Contains parameters for processing received messages in a pipeline.
     /// This class encapsulates connection information, message metadata, and the data stream for incoming messages.
     /// </summary>
-    public class MessageReceiveParams
+    public struct MessageReceiveParams<TId, TMessageMetadata>
+        where TId : unmanaged
+        where TMessageMetadata : unmanaged, IMessageMetadata, IDataStreamDeserializable<TMessageMetadata>
     {
         /// <summary>
         /// Gets the unique identifier of the connection that sent this message.
         /// </summary>
-        public readonly ulong ConnectionUID;
+        public readonly TId ConnectionUID;
 
         /// <summary>
         /// Gets the metadata handler for this message, containing information about message type and characteristics.
         /// </summary>
-        public readonly MessageMetadataHandler MessageMetadata;
+        public readonly TMessageMetadata MessageMetadata;
 
         /// <summary>
         /// Gets or sets the data stream reader containing the message data.
@@ -51,12 +59,12 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         /// <summary>
         /// Initializes a new instance of the <see cref="MessageReceiveParams"/> class with the specified parameters.
         /// </summary>
-        /// <param name="connectionUID">The unique identifier of the connection that sent this message.</param>
+        /// <param name="connectionId">The unique identifier of the connection that sent this message.</param>
         /// <param name="messageMetadata">The metadata handler for this message.</param>
         /// <param name="stream">The data stream reader containing the message data.</param>
-        public MessageReceiveParams(ulong connectionUID, MessageMetadataHandler messageMetadata, ref DataStreamReader stream)
+        public MessageReceiveParams(TId connectionId, TMessageMetadata messageMetadata, ref DataStreamReader stream)
         {
-            ConnectionUID = connectionUID;
+            ConnectionUID = connectionId;
             MessageMetadata = messageMetadata;
             Stream = stream;
         }
@@ -65,28 +73,36 @@ namespace AblazeForge.DirectiveNetcode.Messaging
     /// <summary>
     /// Represents a pipeline step in the client-to-server message send pipeline.
     /// </summary>
-    public interface IClientToServerSendStep : IPipelineStep<MessageSendParams> { }
+    public interface IClientToServerSendStep<TId, TMessageMetadata> : IPipelineStep<MessageSendParams<TId, TMessageMetadata>>
+        where TId : unmanaged
+        where TMessageMetadata : unmanaged, IDataStreamSerializable, IMessageMetadata
+    { }
 
     /// <summary>
     /// Represents a pipeline step in the server-to-client message send pipeline.
     /// </summary>
-    public interface IServerToClientSendStep : IPipelineStep<MessageSendParams> { }
+    public interface IServerToClientSendStep<TId, TMessageMetadata> : IPipelineStep<MessageSendParams<TId, TMessageMetadata>>
+        where TId : unmanaged
+        where TMessageMetadata : unmanaged, IDataStreamSerializable, IMessageMetadata
+    { }
 
     /// <summary>
     /// Contains parameters for processing messages to be sent in a pipeline.
     /// This class encapsulates connection information, message metadata, and the data stream for outgoing messages.
     /// </summary>
-    public class MessageSendParams
+    public struct MessageSendParams<TId, TMessageMetadata>
+        where TId : unmanaged
+        where TMessageMetadata : unmanaged, IDataStreamSerializable, IMessageMetadata
     {
         /// <summary>
         /// Gets the unique identifier of the connection this message is being sent to.
         /// </summary>
-        public readonly ulong ConnectionUID;
+        public readonly TId ConnectionUID;
 
         /// <summary>
         /// Gets the metadata handler for this message, containing information about message type and characteristics.
         /// </summary>
-        public readonly MessageMetadataHandler MessageMetadata;
+        public readonly TMessageMetadata MessageMetadata;
 
         /// <summary>
         /// Gets or sets the data stream writer for this message.
@@ -94,12 +110,12 @@ namespace AblazeForge.DirectiveNetcode.Messaging
         public DataStreamWriter Stream;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MessageSendParams"/> class with the specified parameters.
+        /// Initializes a new instance of the <see cref="MessageSendParams"/> struct with the specified parameters.
         /// </summary>
         /// <param name="connectionUID">The unique identifier of the connection this message is being sent to.</param>
-        /// <param name="messageMetadata">The metadata handler for this message.</param>
+        /// <param name="messageMetadata">The metadata for this message.</param>
         /// <param name="stream">The data stream writer for this message.</param>
-        public MessageSendParams(ulong connectionUID, MessageMetadataHandler messageMetadata, ref DataStreamWriter stream)
+        public MessageSendParams(TId connectionUID, TMessageMetadata messageMetadata, ref DataStreamWriter stream)
         {
             ConnectionUID = connectionUID;
             MessageMetadata = messageMetadata;

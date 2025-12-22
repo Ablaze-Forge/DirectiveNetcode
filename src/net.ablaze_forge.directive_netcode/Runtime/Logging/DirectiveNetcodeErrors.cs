@@ -8,6 +8,7 @@ namespace AblazeForge.DirectiveNetcode.Logging
     /// </summary>
     public enum ErrorCodes : int
     {
+        [Obsolete("Use specific error codes instead of Undefined.", false)]
         Undefined = -1,
 
         /// <summary>
@@ -20,21 +21,21 @@ namespace AblazeForge.DirectiveNetcode.Logging
 
         #endregion
 
-        #region Engine Errors (1000 - 1020)
-
-        #region Common Engine Error (1000 - 1010)
+        #region Tick System Error (1000 - 1010)
 
         /// <summary>
         /// Indicates that the specified PlayerLoopSystem update type was not found when attempting to inject the engine's tick method.
         /// </summary>
-        Engine_UpdateTypeNotFoundOnSystem = 1000,
+        TickSystem_UpdateTypeNotFoundOnSystem = 1000,
 
         /// <summary>
         /// Indicates that the engine's tick delegate could not be found when attempting to stop the engine.
         /// </summary>
-        Engine_Stop_NoTickDelegateFound = 1001,
+        TickSystem_Stop_NoTickDelegateFound = 1001,
 
         #endregion
+
+        #region Engine Errors (1011 - 1030)
 
         #region Server Engine Error (1011 - 1020)
 
@@ -78,6 +79,7 @@ namespace AblazeForge.DirectiveNetcode.Logging
     /// </summary>
     public enum WarningCodes : int
     {
+        [Obsolete("Use specific warning codes instead of Undefined.", false)]
         Undefined = -1,
 
         /// <summary>
@@ -95,41 +97,41 @@ namespace AblazeForge.DirectiveNetcode.Logging
 
         #endregion
 
-        #region Engine Warning (1000 - 1020)
-
-        #region Common Engine Warning (1000 - 1010)
+        #region Tick System Warning (1000 - 1010)
 
         /// <summary>
         /// Indicates that a custom PlayerLoopSystem update type was injected, which requires careful handling.
         /// </summary>
-        Engine_CustomLoopInjected = 1000,
+        TickSystem_CustomLoopInjected = 1000,
 
         /// <summary>
         /// Indicates that the engine is not in a stopped state when attempting to start it.
         /// </summary>
-        Engine_Start_InvalidState = 1001,
+        TickSystem_Start_InvalidState = 1001,
 
         /// <summary>
         /// Indicates that the engine is not in a running state when attempting to stop it.
         /// </summary>
-        Engine_Stop_InvalidState = 1002,
+        TickSystem_Stop_InvalidState = 1002,
 
         /// <summary>
         /// Indicates that the specified PlayerLoopSystem update type was not found when attempting to stop the engine.
         /// </summary>
-        Engine_UpdateTypeNotFoundOnSystem = 1003,
+        TickSystem_UpdateTypeNotFoundOnSystem = 1003,
 
         /// <summary>
         /// Indicates that a hard stop operation is in progress to clean up instance-specific methods from the PlayerLoop.
         /// </summary>
-        Engine_HardStopInProgress = 1004,
+        TickSystem_HardStopInProgress = 1004,
 
         /// <summary>
         /// Indicates that no instance-specific methods were found in the PlayerLoop during a hard stop operation.
         /// </summary>
-        Engine_HardStop_MissingDelegates = 1005,
+        TickSystem_HardStop_MissingDelegates = 1005,
 
         #endregion
+
+        #region Engine Warning (1011 - 1030)
 
         #region Server Engine Warning (1011 - 1020)
 

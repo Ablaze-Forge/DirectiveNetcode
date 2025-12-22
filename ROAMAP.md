@@ -11,19 +11,19 @@ This roadmap file is structured based on the expected version bump for each coll
 
 This will be the **first use-ready release** that will be available on this repository and on a package manager. Expect bugs and instability.
 
-- [ ] Complete Refactor of all classes and interfaces
+- [x] Complete Refactor of all classes and interfaces
 
-- [ ] Concurrency support with Async methods and IEnumerable
+- [ ] Concurrency support with Async methods and IEnumerable {In progress}
 
-- [ ] Basic authorization system with open implementation via interfaces
+- [ ] Basic authorization system with open implementation via interfaces {For next commit}
 
 - [ ] Synchronization system
   
-- [ ] Separation of the **ServerEngine**, **ClientEngine** and **MessageDispatcher** classes
+- [x] Separation of the **ServerEngine**, **ClientEngine** and **MessageDispatcher** classes
 
-- [ ] New **logging model** integrated as a first-class citizen across all classes.
+- [ ] New **logging model** integrated as a first-class citizen across all classes. {In progress}
 
-----------
+---------- 
 
 ### Version 0.1.0b (Beta Stable)
 
@@ -35,7 +35,7 @@ The goal of this release is to stabilize the code based on the results from the 
 
 - [ ] Implementation of Unity testing ecosystem.
 
-----------
+---------- 
 
 ### Version 0.2.0b (Feature Unstable Preview)
 
