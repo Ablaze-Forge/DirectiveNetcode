@@ -1,23 +1,57 @@
+using System;
 using Unity.Collections;
 
 namespace AblazeForge.DirectiveNetcode.Messaging.Pipelines
 {
-    /// <summary>
-    /// Represents a message pipeline specifically designed for processing incoming messages from clients to the server.
-    /// This pipeline executes a sequence of <see cref="IClientToServerReceiveStep"/> steps to validate and process client messages.
-    /// </summary>
-    public class ClientToServerReceivePipeline : MessagePipeline<IClientToServerReceiveStep, MessageReceiveParams>
+    public readonly struct ClientToServerReceivePipeline<TId, TMessageMetadata, TClientToServerReceiveStep> : IMessagePipeline<TClientToServerReceiveStep, MessageReceiveParams<TId, TMessageMetadata>>
+        where TId : unmanaged, IEquatable<TId>
+        where TClientToServerReceiveStep : unmanaged, IClientToServerReceiveStep<TId, TMessageMetadata>
+        where TMessageMetadata : unmanaged, IMessageMetadata, IDataStreamDeserializable<TMessageMetadata>
     {
-        /// <summary>
-        /// Handles an incoming message from a client by executing the pipeline steps with the provided parameters.
-        /// </summary>
-        /// <param name="connectionUID">The unique identifier of the client connection that sent the message.</param>
-        /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
-        /// <param name="stream">The data stream reader containing the message data.</param>
-        /// <returns>A <see cref="PipelineResult"/> indicating the result of processing the message through the pipeline.</returns>
-        public PipelineResult HandleIncomingMessage(ulong connectionUID, MessageMetadataHandler messageMetadata, ref DataStreamReader stream)
+        private readonly NativeList<TClientToServerReceiveStep> m_Steps;
+
+        public ClientToServerReceivePipeline(params TClientToServerReceiveStep[] steps)
         {
-            MessageReceiveParams messageParams = new(connectionUID, messageMetadata, ref stream);
+            m_Steps = new();
+
+            AddSteps(steps);
+        }
+
+        public void AddStep(TClientToServerReceiveStep step)
+        {
+            m_Steps.Add(step);
+        }
+
+        public void AddSteps(params TClientToServerReceiveStep[] steps)
+        {
+            NativeArray<TClientToServerReceiveStep> stepArray = new(steps, Allocator.Temp);
+
+            m_Steps.AddRange(stepArray);
+        }
+
+        public PipelineResult ExecuteSteps(MessageReceiveParams<TId, TMessageMetadata> messageParams)
+        {
+            foreach (var step in m_Steps)
+            {
+                PipelineStepResult stepResult = step.Execute(messageParams);
+
+                if(stepResult == PipelineStepResult.DisconnectClient)
+                {
+                    return PipelineResult.DisconnectClient;
+                }
+
+                if(stepResult != PipelineStepResult.Success)
+                {
+                    return PipelineResult.DiscardMessage;
+                }
+            }
+
+            return PipelineResult.Success;
+        }
+
+        public PipelineResult HandleIncomingMessage(TId connectionUID, TMessageMetadata messageMetadata, ref DataStreamReader stream)
+        {
+            MessageReceiveParams<TId, TMessageMetadata> messageParams = new(connectionUID, messageMetadata, ref stream);
 
             return ExecuteSteps(messageParams);
         }

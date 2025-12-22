@@ -9,10 +9,7 @@ namespace AblazeForge.DirectiveNetcode.Messaging.MessageAttributes
         /// </summary>
         public ushort MessageKey { get; protected set; }
 
-        /// <summary>
-        /// The connection flags required for the handler to be invoked.
-        /// </summary>
-        public ushort RequiredConnectionFlags { get; protected set; }
+        public bool RequiresAuthenticatedState { get; protected set; }
 
         /// <summary>
         /// Gets the message side configuration that determines which side of the network communication this handler is intended for.
@@ -20,54 +17,73 @@ namespace AblazeForge.DirectiveNetcode.Messaging.MessageAttributes
         /// </summary>
         public MessageSide MessageSide { get; protected set; }
 
-        protected MessageDelegateAttributeBase(ushort messageKey, MessageSide messageSide, ushort requiredConnectionFlags)
+        protected MessageDelegateAttributeBase(ushort messageKey, MessageSide messageSide, bool requiresAuthentication)
         {
             MessageKey = messageKey;
             MessageSide = messageSide;
-            RequiredConnectionFlags = requiredConnectionFlags;
+            RequiresAuthenticatedState = requiresAuthentication;
         }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
     public class MessageAttribute : MessageDelegateAttributeBase
     {
-        public MessageAttribute(ushort messageKey, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0) : base(messageKey, messageSide, requiredConnectionFlags) { }
+        public ushort PermissionsRequired { get; protected set; }
+
+        public MessageAttribute(ushort messageKey, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0, bool requireAuthentication = true) : base(messageKey, messageSide, requireAuthentication)
+        {
+            PermissionsRequired = requiredConnectionFlags;
+        }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
     public class CodeGenMessageAttribute : MessageDelegateAttributeBase
     {
-        public CodeGenMessageAttribute(ushort messageKey, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0) : base(messageKey, messageSide, requiredConnectionFlags) { }
+        public ushort PermissionsRequired { get; protected set; }
+
+        public CodeGenMessageAttribute(ushort messageKey, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0, bool requireAuthentication = true) : base(messageKey, messageSide, requireAuthentication)
+        {
+            PermissionsRequired = requiredConnectionFlags;
+        }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
     public class ControlMessageAttribute : MessageDelegateAttributeBase
     {
+        public ushort PermissionsRequired { get; protected set; }
         public ushort StreamLength { get; protected set; }
 
-        public ControlMessageAttribute(byte messageKey, ushort streamLength, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0)
-            : base(messageKey, messageSide, requiredConnectionFlags)
+        public ControlMessageAttribute(byte messageKey, ushort streamLength, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0, bool requireAuthentication = true)
+            : base(messageKey, messageSide, requireAuthentication)
         {
             StreamLength = streamLength;
+            PermissionsRequired = requiredConnectionFlags;
         }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
     public class CodeGenControlMessageAttribute : MessageDelegateAttributeBase
     {
+        public ushort PermissionsRequired { get; protected set; }
         public ushort StreamLength { get; protected set; }
 
-        public CodeGenControlMessageAttribute(byte messageKey, ushort streamLength, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0)
-            : base(messageKey, messageSide, requiredConnectionFlags)
+        public CodeGenControlMessageAttribute(byte messageKey, ushort streamLength, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0, bool requireAuthentication = true)
+            : base(messageKey, messageSide, requireAuthentication)
         {
             StreamLength = streamLength;
+            PermissionsRequired = requiredConnectionFlags;
         }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
     public class EventMessageAttribute : MessageDelegateAttributeBase
     {
-        public EventMessageAttribute(ushort messageKey, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0) : base(messageKey, messageSide, requiredConnectionFlags) { }
+        public ushort PermissionsRequired { get; protected set; }
+
+        public EventMessageAttribute(ushort messageKey, MessageSide messageSide = MessageSide.Any, ushort requiredConnectionFlags = 0, bool requireAuthentication = true) : base(messageKey, messageSide, requireAuthentication)
+        {
+            PermissionsRequired = requiredConnectionFlags;
+        }
     }
 
     /// <summary>

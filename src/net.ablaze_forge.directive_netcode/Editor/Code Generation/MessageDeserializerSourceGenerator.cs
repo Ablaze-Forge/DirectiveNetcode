@@ -1,11 +1,11 @@
+using AblazeForge.DirectiveNetcode.Messaging;
+using AblazeForge.DirectiveNetcode.Messaging.MessageAttributes;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using AblazeForge.DirectiveNetcode.Messaging;
-using AblazeForge.DirectiveNetcode.Messaging.MessageAttributes;
 using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
@@ -177,7 +177,7 @@ namespace AblazeForge.DirectiveNetcode.Editor.CodeGen
         /// </summary>
         private static void WriteMessage(MethodInfo method, IndentedTextWriter writer, CodeGenMessageAttribute attribute)
         {
-            writer.WriteLine($"[Message({attribute.MessageKey}, {nameof(MessageSide)}.{attribute.MessageSide}, {attribute.RequiredConnectionFlags})]");
+            writer.WriteLine($"[Message({attribute.MessageKey}, {nameof(MessageSide)}.{attribute.MessageSide}, {attribute.PermissionsRequired})]");
             writer.Write("public static void ");
             WriteMethod(method, writer);
         }
@@ -187,7 +187,7 @@ namespace AblazeForge.DirectiveNetcode.Editor.CodeGen
         /// </summary>
         private static void WriteControlMessage(MethodInfo method, IndentedTextWriter writer, CodeGenControlMessageAttribute attribute)
         {
-            writer.WriteLine($"[ControlMessage({attribute.MessageKey}, {nameof(MessageSide)}.{attribute.MessageSide}, {attribute.RequiredConnectionFlags})]");
+            writer.WriteLine($"[ControlMessage({attribute.MessageKey}, {nameof(MessageSide)}.{attribute.MessageSide}, {attribute.PermissionsRequired})]");
             writer.Write("public static bool ");
             WriteMethod(method, writer);
         }
@@ -204,7 +204,7 @@ namespace AblazeForge.DirectiveNetcode.Editor.CodeGen
 
             writer.Write(safeMethodName);
 
-            writer.WriteLine($" ({nameof(UInt64)} connectionUID, {nameof(MessageMetadataHandler)} messageMetadata, {nameof(DataStreamReader)} stream)");
+            writer.WriteLine($" ({nameof(UInt64)} connectionUID, {nameof(MessageMetadata)} messageMetadata, {nameof(DataStreamReader)} stream)");
             writer.WriteLine("{");
             writer.Indent++;
 

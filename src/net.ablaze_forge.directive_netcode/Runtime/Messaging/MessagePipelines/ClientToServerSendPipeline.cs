@@ -1,25 +1,52 @@
+using System;
 using Unity.Collections;
 
 namespace AblazeForge.DirectiveNetcode.Messaging.Pipelines
 {
-    /// <summary>
-    /// Represents a message pipeline specifically designed for processing outgoing messages from clients to the server.
-    /// This pipeline executes a sequence of <see cref="IClientToServerSendStep"/> steps to prepare and validate messages before sending from the client.
-    /// </summary>
-    public class ClientToServerSendPipeline : MessagePipeline<IClientToServerSendStep, MessageSendParams>
+    public readonly struct ClientToServerSendPipeline<TId, TMessageMetadata, TClientToServerSendStep> : IMessagePipeline<TClientToServerSendStep, MessageSendParams<TId, TMessageMetadata>>
+        where TId : unmanaged, IEquatable<TId>
+        where TMessageMetadata : unmanaged, IMessageMetadata, IDataStreamSerializable
+        where TClientToServerSendStep : unmanaged, IClientToServerSendStep<TId, TMessageMetadata>
     {
-        /// <summary>
-        /// Prepares a message to be sent from the client by executing the pipeline steps with the provided parameters.
-        /// </summary>
-        /// <param name="connectionUID">The unique identifier of the server connection the message is being sent to.</param>
-        /// <param name="messageMetadata">The metadata handler containing information about the message type and characteristics.</param>
-        /// <param name="stream">The data stream writer for the message.</param>
-        /// <returns>A <see cref="PipelineResult"/> indicating the result of processing the message through the pipeline.</returns>
-        public PipelineResult PrepareMessageToSend(ulong connectionUID, MessageMetadataHandler messageMetadata, ref DataStreamWriter stream)
-        {
-            MessageSendParams messageParams = new(connectionUID, messageMetadata, ref stream);
+        private readonly NativeList<TClientToServerSendStep> m_Steps;
 
-            return ExecuteSteps(messageParams);
+        public ClientToServerSendPipeline(params TClientToServerSendStep[] steps)
+        {
+            m_Steps = new();
+
+            AddSteps(steps);
+        }
+
+        public void AddStep(TClientToServerSendStep step)
+        {
+            m_Steps.Add(step);
+        }
+
+        public void AddSteps(params TClientToServerSendStep[] steps)
+        {
+            NativeArray<TClientToServerSendStep> stepArray = new(steps, Allocator.Temp);
+
+            m_Steps.AddRange(stepArray);
+        }
+
+        public PipelineResult ExecuteSteps(MessageSendParams<TId, TMessageMetadata> messageParams)
+        {
+            foreach (TClientToServerSendStep step in m_Steps)
+            {
+                PipelineStepResult stepResult = step.Execute(messageParams);
+
+                if (stepResult == PipelineStepResult.DisconnectClient)
+                {
+                    return PipelineResult.DisconnectClient;
+                }
+
+                if (stepResult != PipelineStepResult.Success)
+                {
+                    return PipelineResult.DiscardMessage;
+                }
+            }
+
+            return PipelineResult.Success;
         }
     }
 }

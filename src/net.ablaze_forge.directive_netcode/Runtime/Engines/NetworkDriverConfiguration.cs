@@ -1,5 +1,5 @@
 using System;
-using Unity.Collections;
+using System.Collections.Generic;
 using Unity.Networking.Transport;
 
 namespace AblazeForge.DirectiveNetcode.Engines
@@ -14,59 +14,210 @@ namespace AblazeForge.DirectiveNetcode.Engines
     public abstract class NetworkDriverConfiguration
     {
         /// <summary>
-        /// Provides a default configuration for a UDP-based <see cref="NetworkDriver"/>.
+        /// Provides a default configuration for a **UDP**-based <see cref="NetworkDriver"/> (<seealso cref="NetworkDriverConfiguration{UDPNetworkInterface}"/>).
         /// </summary>
-        public static NetworkDriverConfiguration<UDPNetworkInterface> UdpConfiguration => new();
+        public static NetworkDriverConfiguration UdpConfiguration => new NetworkDriverConfiguration<UDPNetworkInterface>();
 
         /// <summary>
-        /// Provides a default configuration for a WebSocket-based <see cref="NetworkDriver"/>.
+        /// Provides a default configuration for a **IPC**-based <see cref="NetworkDriver"/> (<seealso cref="NetworkDriverConfiguration{IPCNetworkInterface}"/>).
         /// </summary>
-        public static NetworkDriverConfiguration<WebSocketNetworkInterface> WebSocketConfiguration => new(port: 7778, reliablePipelineConfig: PipelineStageConfiguration.UnreliableDefaultConfiguration);
+        public static NetworkDriverConfiguration IpcConfiguration => new NetworkDriverConfiguration<IPCNetworkInterface>();
+
+        /// <summary>
+        /// Provides a default configuration for a **WebSocket**-based <see cref="NetworkDriver"/> (<seealso cref="NetworkDriverConfiguration{WebSocketNetworkInterface}"/>).
+        /// </summary>
+        /// <remarks>
+        /// This configuration explicitly sets the reliable pipeline to <see cref="PipelineStageConfiguration.UnreliableDefaultConfiguration"/> because WebSocket runs over TCP, which already provides reliable delivery. 
+        /// Adding an additional reliable stage would incur unnecessary overhead.
+        /// </remarks>
+        public static NetworkDriverConfiguration WebSocketConfiguration => new NetworkDriverConfiguration<WebSocketNetworkInterface>()
+            .WithFragmentationPipelineStage(new PipelineStageConfiguration(typeof(FragmentationPipelineStage)))
+            .WithReliablePipelineStage(PipelineStageConfiguration.UnreliableDefaultConfiguration);
 
         /// <summary>
         /// Specifies whether to use IPv4. If false, IPv6 will be used.
         /// </summary>
-        public bool UseIPv4 { get; private set; }
+        public bool IsIPv4 { get; protected set; } = true;
 
         /// <summary>
-        /// The network port to be used by the driver.
+        /// The network port to be used by the driver. Defaults to 7777.
         /// </summary>
-        public ushort Port { get; private set; }
-
-        public PipelineStageConfiguration UnreliablePipelineIds;
-        public PipelineStageConfiguration ReliablePipelineIds;
-        public PipelineStageConfiguration UnreliableSequencedPipelineIds;
-        public PipelineStageConfiguration FragmentationPipelineIds;
+        public ushort Port { get; protected set; } = 7777;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="NetworkDriverConfiguration"/> class.
+        /// The struct containing the settings for the driver.
         /// </summary>
-        /// <param name="port">The network port for the driver.</param>
-        /// <param name="useIPv4">True to use IPv4 and false to use IPv6.</param>
-        /// <param name="unreliablePipelineConfig">Configuration for unreliable pipeline.</param>
-        /// <param name="reliablePipelineConfig">Configuration for reliable pipeline.</param>
-        /// <param name="unreliableSequencedPipelineConfig">Configuration for unreliable sequenced pipeline.</param>
-        /// <param name="fragmentationPipelineConfig">Configuration for fragmentation pipeline.</param>
-        protected NetworkDriverConfiguration(ushort port, bool useIPv4,
-            PipelineStageConfiguration unreliablePipelineConfig = null,
-            PipelineStageConfiguration reliablePipelineConfig = null,
-            PipelineStageConfiguration unreliableSequencedPipelineConfig = null,
-            PipelineStageConfiguration fragmentationPipelineConfig = null)
+        public NetworkSettings NetworkSettings { get; protected set; } = new NetworkSettings();
+
+        /// <summary>
+        /// The configuration for the unreliable pipeline (default: <see cref="NullPipelineStage"/>).
+        /// </summary>
+        public PipelineStageConfiguration UnreliablePipelineIds { get; protected set; } = PipelineStageConfiguration.UnreliableDefaultConfiguration;
+
+        /// <summary>
+        /// The configuration for the reliable pipeline (default: <see cref="ReliableSequencedPipelineStage"/>).
+        /// </summary>
+        public PipelineStageConfiguration ReliablePipelineIds { get; protected set; } = PipelineStageConfiguration.ReliableSequencedDefaultConfiguration;
+
+        /// <summary>
+        /// The configuration for the unreliable sequenced pipeline (default: <see cref="UnreliableSequencedPipelineStage"/>).
+        /// </summary>
+        public PipelineStageConfiguration UnreliableSequencedPipelineIds { get; protected set; } = PipelineStageConfiguration.UnreliableSequencedDefaultConfiguration;
+
+        /// <summary>
+        /// The configuration for the fragmentation pipeline (default: <see cref="FragmentationPipelineStage"/>).
+        /// </summary>
+        public PipelineStageConfiguration FragmentationPipelineIds { get; protected set; } = PipelineStageConfiguration.FragmentedDefaultConfiguration;
+
+        /// <summary>
+        /// Configures the driver to use IPv4.
+        /// </summary>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration UseIpV4()
+        {
+            IsIPv4 = true;
+
+            return this;
+        }
+
+        /// <summary>
+        /// Configures the driver to use IPv6.
+        /// </summary>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration UseIpv6()
+        {
+            IsIPv4 = false;
+
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the network port for the driver.
+        /// </summary>
+        /// <param name="port">The port number to use.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration WithPort(ushort port)
         {
             Port = port;
-            UseIPv4 = useIPv4;
 
-            UnreliablePipelineIds = unreliablePipelineConfig ?? PipelineStageConfiguration.UnreliableDefaultConfiguration;
-            ReliablePipelineIds = reliablePipelineConfig ?? PipelineStageConfiguration.ReliableSequencedDefaultConfiguration;
-            UnreliableSequencedPipelineIds = unreliableSequencedPipelineConfig ?? PipelineStageConfiguration.UnreliableSequencedDefaultConfiguration;
-            FragmentationPipelineIds = fragmentationPipelineConfig ?? PipelineStageConfiguration.FragmentedDefaultConfiguration;
+            return this;
+        }
+
+        public NetworkDriverConfiguration WithSettings(NetworkSettings settings)
+        {
+            NetworkSettings = settings;
+
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the entire pipeline configuration for unreliable messaging.
+        /// </summary>
+        /// <param name="pipelineStage">The pipeline configuration to use.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration WithUnreliablePipelineStage(PipelineStageConfiguration pipelineStage)
+        {
+            UnreliablePipelineIds = pipelineStage;
+
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a single step (stage) to the unreliable pipeline.
+        /// </summary>
+        /// <param name="step">The type of the pipeline stage to add.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration AddUnreliablePipelineStep(Type step)
+        {
+            UnreliablePipelineIds.AddStep(step);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the entire pipeline configuration for reliable messaging.
+        /// </summary>
+        /// <param name="pipelineStage">The pipeline configuration to use.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration WithReliablePipelineStage(PipelineStageConfiguration pipelineStage)
+        {
+            ReliablePipelineIds = pipelineStage;
+
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a single step (stage) to the reliable pipeline.
+        /// </summary>
+        /// <param name="step">The type of the pipeline stage to add.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration AddReliablePipelineStep(Type step)
+        {
+            ReliablePipelineIds.AddStep(step);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the entire pipeline configuration for unreliable sequenced messaging.
+        /// </summary>
+        /// <param name="pipelineStage">The pipeline configuration to use.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration WithUnreliableSequencedPipelineStage(PipelineStageConfiguration pipelineStage)
+        {
+            UnreliableSequencedPipelineIds = pipelineStage;
+
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a single step (stage) to the unreliable sequenced pipeline.
+        /// </summary>
+        /// <param name="step">The type of the pipeline stage to add.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration AddUnreliableSequencedPipelineStep(Type step)
+        {
+            UnreliableSequencedPipelineIds.AddStep(step);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the entire pipeline configuration for message fragmentation.
+        /// </summary>
+        /// <param name="pipelineStage">The pipeline configuration to use.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration WithFragmentationPipelineStage(PipelineStageConfiguration pipelineStage)
+        {
+            FragmentationPipelineIds = pipelineStage;
+
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a single step (stage) to the fragmentation pipeline.
+        /// </summary>
+        /// <param name="step">The type of the pipeline stage to add.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public NetworkDriverConfiguration AddFragmentationPipelineStep(Type step)
+        {
+            FragmentationPipelineIds.AddStep(step);
+
+            return this;
         }
 
         /// <summary>
         /// Creates and returns a configured <see cref="NetworkDriver"/> instance based on this configuration.
         /// </summary>
         /// <returns>A new <see cref="NetworkDriver"/>.</returns>
-        public abstract NetworkDriver GetNetworkDriver(NetworkSettings settings);
+        public abstract NetworkDriver GetNetworkDriver();
+
+        /// <summary>
+        /// Creates a new configuration instance with a different underlying <see cref="INetworkInterface"/>.
+        /// </summary>
+        /// <typeparam name="TInterface">The new <see cref="INetworkInterface"/> type.</typeparam>
+        /// <returns>A new <see cref="NetworkDriverConfiguration"/> instance with the specified interface.</returns>
+        public abstract NetworkDriverConfiguration ChangeInterface<TInterface>() where TInterface : unmanaged, INetworkInterface;
     }
 
     /// <summary>
@@ -75,82 +226,105 @@ namespace AblazeForge.DirectiveNetcode.Engines
     /// <remarks>
     /// This generic class allows specifying the underlying network protocol (e.g., UDP, WebSocket, or a custom implementation) at compile time.
     /// </remarks>
-    /// <typeparam name="T"> The struct type that implements <see cref="INetworkInterface"/>, defining the low-level network communication protocol. Must be an unmanaged struct. </typeparam>
-    public class NetworkDriverConfiguration<T> : NetworkDriverConfiguration where T : unmanaged, INetworkInterface
+    /// <typeparam name="TInterface"> The struct type that implements <see cref="INetworkInterface"/>, defining the low-level network communication protocol. Must be an unmanaged struct. </typeparam>
+    public class NetworkDriverConfiguration<TInterface> : NetworkDriverConfiguration where TInterface : unmanaged, INetworkInterface
     {
         /// <summary>
         /// The instance of the <see cref="INetworkInterface"/> struct used by this configuration.
         /// </summary>
-        public T NetworkInterfaceInstance { get; private set; }
+        public TInterface NetworkInterfaceInstance { get; private set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="NetworkDriverConfiguration{T}"/> class.
-        /// The <typeparamref name="T"/> network interface instance will be default-constructed.
+        /// Initializes a new instance of the <see cref="NetworkDriverConfiguration{TInterface}"/> class.
+        /// The <typeparamref name="TInterface"/> network interface instance will be default-constructed.
         /// </summary>
-        /// <param name="port">The network port for the driver. Defaults to 7777.</param>
-        /// <param name="useIPv4">True to use IPv4 and false to use IPv6. Defaults to <c>true</c>.</param>
-        /// <param name="unreliablePipelineConfig">Configuration for unreliable pipeline. Defaults to null.</param>
-        /// <param name="reliablePipelineConfig">Configuration for reliable pipeline. Defaults to null.</param>
-        /// <param name="unreliableSequencedPipelineConfig">Configuration for unreliable sequenced pipeline. Defaults to null.</param>
-        /// <param name="fragmentationPipelineConfig">Configuration for fragmentation pipeline. Defaults to null.</param>
-        public NetworkDriverConfiguration(ushort port = 7777, bool useIPv4 = true,
-            PipelineStageConfiguration unreliablePipelineConfig = null,
-            PipelineStageConfiguration reliablePipelineConfig = null,
-            PipelineStageConfiguration unreliableSequencedPipelineConfig = null,
-            PipelineStageConfiguration fragmentationPipelineConfig = null)
-            : base(port, useIPv4, unreliablePipelineConfig, reliablePipelineConfig, unreliableSequencedPipelineConfig, fragmentationPipelineConfig)
+        public NetworkDriverConfiguration()
+            : base()
         {
-            NetworkInterfaceInstance = new T();
+            NetworkInterfaceInstance = new TInterface();
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="NetworkDriverConfiguration{T}"/> class with a pre-existing <see cref="INetworkInterface"/> instance.
+        /// Creates a new <see cref="NetworkDriverConfiguration{TNewInterface}"/> instance, preserving the current configuration's settings but swapping the network interface.
         /// </summary>
+        /// <typeparam name="TNewInterface">The new <see cref="INetworkInterface"/> type.</typeparam>
+        /// <returns>A new <see cref="NetworkDriverConfiguration{TNewInterface}"/> instance.</returns>
         /// <remarks>
-        /// Use this constructor when your custom <see cref="INetworkInterface"/> implementation requires specific initialization parameters that cannot be provided by a default constructor.
+        /// It's important to note that if the new interface is of type <see cref="WebSocketNetworkInterface"/>, users should explicitly remove reliable stages from the pipelines.
+        /// That can be achieved by calling <c>.WithReliablePipelineStage(PipelineStageConfiguration.UnreliableDefaultConfiguration)</c>) to avoid redundant overhead on the TCP-based protocol.
         /// </remarks>
-        /// <param name="networkInterfaceInstance">The pre-configured <see cref="INetworkInterface"/> instance.</param>
-        /// <param name="port">The network port for the driver. Defaults to 7777.</param>
-        /// <param name="useIPv4">True to use IPv4 and false to use IPv6. Defaults to <c>true</c>.</param>
-        /// <param name="unreliablePipelineConfig">Configuration for unreliable pipeline. Defaults to null.</param>
-        /// <param name="reliablePipelineConfig">Configuration for reliable pipeline. Defaults to null.</param>
-        /// <param name="unreliableSequencedPipelineConfig">Configuration for unreliable sequenced pipeline. Defaults to null.</param>
-        /// <param name="fragmentationPipelineConfig">Configuration for fragmentation pipeline. Defaults to null.</param>
-        public NetworkDriverConfiguration(T networkInterfaceInstance, ushort port = 7777, bool useIPv4 = true,
-            PipelineStageConfiguration unreliablePipelineConfig = null,
-            PipelineStageConfiguration reliablePipelineConfig = null,
-            PipelineStageConfiguration unreliableSequencedPipelineConfig = null,
-            PipelineStageConfiguration fragmentationPipelineConfig = null)
-            : base(port, useIPv4, unreliablePipelineConfig, reliablePipelineConfig, unreliableSequencedPipelineConfig, fragmentationPipelineConfig)
+        public override NetworkDriverConfiguration ChangeInterface<TNewInterface>()
         {
-            NetworkInterfaceInstance = networkInterfaceInstance;
+            return new NetworkDriverConfiguration<TNewInterface>()
+                .WithUnreliablePipelineStage(UnreliablePipelineIds)
+                .WithReliablePipelineStage(ReliablePipelineIds)
+                .WithUnreliableSequencedPipelineStage(UnreliableSequencedPipelineIds)
+                .WithFragmentationPipelineStage(FragmentationPipelineIds)
+                .WithPort(Port);
         }
 
         /// <summary>
-        /// Overrides the base method to create a <see cref="NetworkDriver"/> using the specific <see cref="INetworkInterface"/> defined by this configuration.
+        /// Creates and returns a configured <see cref="NetworkDriver"/> instance using the specific <typeparamref name="TInterface"/>.
         /// </summary>
-        /// <returns>A new <see cref="NetworkDriver"/> instance.</returns>
-        public override NetworkDriver GetNetworkDriver(NetworkSettings settings)
+        /// <returns>A new <see cref="NetworkDriver"/>.</returns>
+        public override NetworkDriver GetNetworkDriver()
         {
-            return NetworkDriver.Create(NetworkInterfaceInstance, settings);
+            return NetworkDriver.Create(NetworkInterfaceInstance, NetworkSettings);
         }
     }
 
+    /// <summary>
+    /// Represents the configuration and ordering of pipeline stages used by a <see cref="NetworkDriver"/>.
+    /// </summary>
     public class PipelineStageConfiguration
     {
+        /// <summary>
+        /// A default configuration for a reliable and sequenced pipeline stage.
+        /// </summary>
         public static PipelineStageConfiguration ReliableSequencedDefaultConfiguration => new(typeof(ReliableSequencedPipelineStage));
 
+        /// <summary>
+        /// A default configuration for an unreliable but sequenced pipeline stage.
+        /// </summary>
         public static PipelineStageConfiguration UnreliableSequencedDefaultConfiguration => new(typeof(UnreliableSequencedPipelineStage));
 
+        /// <summary>
+        /// A default configuration for a completely unreliable pipeline, using the <see cref="NullPipelineStage"/>.
+        /// </summary>
         public static PipelineStageConfiguration UnreliableDefaultConfiguration => new(typeof(NullPipelineStage));
 
+        /// <summary>
+        /// A default configuration for a fragmented pipeline, including the <see cref="ReliableSequencedPipelineStage"/> for transport.
+        /// </summary>
         public static PipelineStageConfiguration FragmentedDefaultConfiguration => new(typeof(FragmentationPipelineStage), typeof(ReliableSequencedPipelineStage));
 
-        public Type[] Stages;
+        /// <summary>
+        /// Gets an array of <see cref="Type"/> objects representing the configured pipeline stages.
+        /// A new array is returned on each access to maintain state immutability.
+        /// </summary>
+        public Type[] Stages => m_Stages.ToArray();
 
+        private readonly List<Type> m_Stages;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PipelineStageConfiguration"/> class with the specified stages.
+        /// </summary>
+        /// <param name="stages">An array of stage types.</param>
         public PipelineStageConfiguration(params Type[] stages)
         {
-            Stages = stages;
+            m_Stages = new(stages);
+        }
+
+        /// <summary>
+        /// Adds a new step (stage) to the end of the pipeline.
+        /// </summary>
+        /// <param name="newStep">The type of the pipeline stage to add.</param>
+        /// <returns>The current configuration instance for fluent chaining.</returns>
+        public PipelineStageConfiguration AddStep(Type newStep)
+        {
+            m_Stages.Add(newStep);
+
+            return this;
         }
     }
 }
